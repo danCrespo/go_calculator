@@ -1,36 +1,32 @@
 package flags
 
 import (
-	"flag"
-	"fmt"
-	"strings"
+	"os"
 
 	calculator "calculator/calc"
 )
 
-type PrecisionFlag struct{ calculator.Calculator }
-
-func (f *PrecisionFlag) Set(p string) error {
-	var verb string
-
-	fmt.Sscanf(p, "%s", &verb)
-
-	if !strings.Contains(verb, "%") {
-		verb = strings.Replace(verb, verb, "%"+verb, 1)
-	}
-
-	fmt.Println("verb", verb)
-	f.Precision = verb
-	return nil
+type PrecisionFlag struct {
+	calculator.CalculatorPrecision
 }
 
-func Precision(name string, value string, usage string) *calculator.Calculator {
-	f := PrecisionFlag{Calculator: calculator.Calculator{Precision: value}}
+var cmd = newCmdLine()
 
-	f.PrecisionFlagVar(name, usage)
-	return &f.Calculator
+func Args() []string {
+	return cmd.Args()
 }
 
-func (f *PrecisionFlag) PrecisionFlagVar(name string, usage string) {
-	flag.CommandLine.Var(f, name, usage)
+func Parse() {
+	cmd.FlagSet.Parse(os.Args[1:])
+}
+
+func (f *PrecisionFlag) Var(name, usage string, example ...string) *calculator.CalculatorPrecision {
+	cmd.Var(f, name, usage, example...)
+	return &f.CalculatorPrecision
+}
+
+func Precision(name string, value calculator.CalculatorPrecision, usage string, examples ...string) *PrecisionFlag {
+	f := PrecisionFlag{value}
+	cmd.Var(&f, name, usage, examples...)
+	return &f
 }

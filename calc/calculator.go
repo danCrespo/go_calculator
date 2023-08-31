@@ -1,9 +1,9 @@
 package calculator
 
 import (
-	"flag"
 	"fmt"
 	"math"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -24,56 +24,54 @@ type CalculatorInstance interface {
 }
 
 type Calculator struct {
-	Precision string
+	Precision *CalculatorPrecision
 	Result    float64
 }
 
-func NewCalculator() CalculatorInstance {
-	c := &Calculator{}
+type CalculatorPrecision string
+
+func NewCalculator(precision *CalculatorPrecision) CalculatorInstance {
+	c := &Calculator{Precision: precision}
 	return c
 }
 
 func (c *Calculator) Results(result chan float64) {
 	for r := range result {
 		c.Result = r
+		fmt.Fprintf(os.Stdout, "\v \033[01;05;32mResult: \033[01;05;36m "+string(*c.Precision)+"\033[00m\n\v", c.Result)
 	}
-	fmt.Println(c)
 }
 
-func (c *Calculator) String() string {
-	if c.Precision == "" {
-		c.Precision = "%g"
-	}
-	return fmt.Sprintf("\v Operation result: "+c.Precision+"\n\v", c.Result)
+func (c CalculatorPrecision) String() string {
+	return string(c)
 }
 
-func Start(EntriesCh chan []string, PartsCh chan [][]string) {
-	signsRegex := regexp.MustCompile(`([\*/\+\-%]){1}`)
+func Start(EntriesCh chan []string, PartsCh chan [][]string, args []string) {
+	// signsRegex := regexp.MustCompile(`([\*/\+\-%]){1}`)
 	inlineArgRegex := regexp.MustCompile(`(?m)([(\d+(\.\d+)*)]+)([\*/\+\-%\(]*)\b\)*`)
 
 	go func() {
 		defer close(EntriesCh)
 
 		var fixedargs []string
-		args := flag.Args()
 
 		if len(args) == 1 {
-			args = strings.Split(flag.Args()[0], " ")
+			args = strings.Split(args[0], " ")
 		}
 
 		inp := strings.Join(args, "")
-
 		if inlineArgRegex.MatchString(inp) {
 			group := make([]string, 0)
 			for i, arg := range args {
+				var result float64
 				if strings.Contains(arg, "(") {
-					arg = strings.SplitAfter(arg, "(")[1]
-					arg = strings.SplitN(arg, ")", -2)[0]
-					splitA, splitB, _ := strings.Cut(arg, signsRegex.FindString(arg))
-					group = append(group, splitA, signsRegex.FindString(arg), splitB)
-					result := FirstOperation(group)
-					args = slices.Replace[[]string, string](args, i, i+1, fmt.Sprintf("%g", result))
+					firstDigit := strings.SplitAfter(arg, "(")[1]
+					secondDigit := strings.SplitN(args[i+2], ")", -1)[0]
+					group = append(group, firstDigit, args[i+1], secondDigit)
+					result = FirstOperation(group)
+					args = slices.Replace[[]string, string](args, i, i+3, fmt.Sprintf("%g", result))
 				}
+				group = slices.Delete[[]string](group, 0, len(group))
 			}
 			fixedargs = append(fixedargs, args...)
 		}
