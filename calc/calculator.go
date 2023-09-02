@@ -5,174 +5,234 @@ import (
 	"math"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"golang.org/x/exp/slices"
+
+	"calculator/flags"
+	"calculator/utils"
 )
 
 const (
-	plus     = "+"
-	minus    = "-"
-	multiply = "*"
-	division = "/"
-	module   = "%"
+	addition       = "+"
+	sustraction    = "-"
+	multiplication = "*"
+	division       = "/"
+	module         = "%"
+	exponent       = "^"
 )
 
 type CalculatorInstance interface {
-	Results(result chan float64)
+	StartCalculation(result chan float64, args []string)
+	PrintResults(result chan float64)
 }
 
 type Calculator struct {
-	Precision *CalculatorPrecision
+	Precision *flags.CalculatorPrecision
+	Hierachy  *flags.CalculatorHierarchy
 	Result    float64
 }
 
-type CalculatorPrecision string
-
-func NewCalculator(precision *CalculatorPrecision) CalculatorInstance {
-	c := &Calculator{Precision: precision}
+func NewCalculator(flags flags.CalculatorFlags) CalculatorInstance {
+	c := &Calculator{
+		Precision: flags.CalculatorPrecision,
+		Hierachy:  flags.CalculatorHierarchy,
+	}
 	return c
 }
 
-func (c *Calculator) Results(result chan float64) {
+func (c *Calculator) PrintResults(result chan float64) {
 	for r := range result {
 		c.Result = r
 		fmt.Fprintf(os.Stdout, "\v \033[01;05;32mResult: \033[01;05;36m "+string(*c.Precision)+"\033[00m\n\v", c.Result)
 	}
 }
 
-func (c CalculatorPrecision) String() string {
-	return string(c)
-}
-
-func Start(EntriesCh chan []string, PartsCh chan [][]string, args []string) {
-	// signsRegex := regexp.MustCompile(`([\*/\+\-%]){1}`)
-	inlineArgRegex := regexp.MustCompile(`(?m)([(\d+(\.\d+)*)]+)([\*/\+\-%\(]*)\b\)*`)
+func (c *Calculator) StartCalculation(resultOperationCh chan float64, args []string) {
+	signsRegex := regexp.MustCompile(`([\*/\+\-%\^]){1}`)
+	parenthesisRegex := regexp.MustCompile(`([(\)]){1}`)
 
 	go func() {
-		defer close(EntriesCh)
-
-		var fixedargs []string
-
+		defer close(resultOperationCh)
 		if len(args) == 1 {
-			args = strings.Split(args[0], " ")
+			args = strings.Split(args[0], "")
 		}
 
 		inp := strings.Join(args, "")
-		if inlineArgRegex.MatchString(inp) {
-			group := make([]string, 0)
-			for i, arg := range args {
-				var result float64
-				if strings.Contains(arg, "(") {
-					firstDigit := strings.SplitAfter(arg, "(")[1]
-					secondDigit := strings.SplitN(args[i+2], ")", -1)[0]
-					group = append(group, firstDigit, args[i+1], secondDigit)
-					result = FirstOperation(group)
-					args = slices.Replace[[]string, string](args, i, i+3, fmt.Sprintf("%g", result))
-				}
-				group = slices.Delete[[]string](group, 0, len(group))
-			}
-			fixedargs = append(fixedargs, args...)
-		}
-		EntriesCh <- fixedargs
-	}()
+		var input string
 
-	go func() {
-		parts := make([][]string, 0)
-
-		defer close(PartsCh)
-
-		for arg := range EntriesCh {
-			if len(arg) == 3 {
-				parts = append(parts, arg)
-			} else {
-				for i := 3; i < len(arg); i++ {
-					if i == 3 {
-						parts = append(parts, arg[:i])
+		for i := 0; i < len(inp); i++ {
+			if inp[i] != ' ' {
+				if signsRegex.Match([]byte(string(inp[i]))) {
+					if inp[i] == '-' && inp[i+1] != ' ' && !parenthesisRegex.Match([]byte(string(inp[i+1]))) {
+						input += " " + string(inp[i])
+					} else {
+						input += " " + string(inp[i]) + " "
 					}
-					parts = append(parts, arg[i:])
+				} else {
+					input += string(inp[i])
 				}
 			}
-			PartsCh <- parts
+		}
+
+		fields := strings.Fields(input)
+
+		if slices.Contains[[]string, string](fields, module) {
+			r := moduleOperation(fields)
+			resultOperationCh <- r
+		} else {
+			pemdasOrder := PEMDASOrder(fields)
+			resultOperationCh <- pemdasOrder
 		}
 	}()
 }
 
-func Operations(PartsCh chan [][]string, result chan float64) {
-	var (
-		part1 []string
-		part2 []string
-		res1  float64
-	)
+func PEMDASOrder(args []string) float64 {
+	P, E, M, D, A, S := "(", "^", "*", "/", "+", "-"
 
-	defer close(result)
+	args = processParenthesisGroups(args, P)
+	args = processOperationElements(args, E)
+	args = processOperationElements(args, M)
+	args = processOperationElements(args, D)
+	args = processOperationElements(args, A)
+	args = processOperationElements(args, S)
 
-	for p := range PartsCh {
-		part1 = p[0]
-		if len(p) > 1 && len(p[1]) > 1 {
-			part2 = p[1]
-		}
-	}
-
-	// fmt.Println("parts1", part1)
-	// fmt.Println("parts2", part2)
-
-	res1 = FirstOperation(part1)
-
-	for i, p := range part2 {
-		if p == "" {
-			break
-		}
-
-		switch p {
-		case plus:
-			res1 += fatoi64(part2[i+1])
-		case minus:
-			res1 -= fatoi64(part2[i+1])
-		case division:
-			res1 /= fatoi64(part2[i+1])
-		case multiply:
-			res1 *= fatoi64(part2[i+1])
-		case module:
-			res1 = float64(int(res1) % atoi(part2[i+1]))
-		}
-	}
-	result <- res1
+	return utils.StringToFloat64(args[0])
 }
 
-var fatoi64 = func(s string) float64 {
-	var res float64
-	if _, err := fmt.Sscanf(s, "%v", &res); err != nil {
-		fmt.Printf("error %v\n", err)
-	}
-	return res
-}
+func resolveOperations(operationElements []string) float64 {
 
-var atoi = func(s string) int {
-	d, _ := strconv.Atoi(s)
-	return d
-}
-
-func FirstOperation(elements []string) float64 {
-	result := 0.0
-
-	for range elements {
-		sign := elements[1]
-		switch sign {
-		case plus:
-			result = fatoi64(elements[0]) + fatoi64(elements[2])
-		case minus:
-			result = fatoi64(elements[0]) - fatoi64(elements[2])
-		case division:
-			result = fatoi64(elements[0]) / fatoi64(elements[2])
-		case multiply:
-			result = fatoi64(elements[0]) * fatoi64(elements[2])
-		case module:
-			res := atoi(elements[0]) - int(math.Floor(fatoi64(elements[0])/fatoi64(elements[2])))*atoi(elements[2])
-			result = float64(res)
+	for range operationElements {
+		if slices.Contains(operationElements, exponent) {
+			exponentIndex := slices.Index[[]string, string](operationElements, exponent)
+			result := math.Pow(utils.StringToFloat64(operationElements[exponentIndex-1]), utils.StringToFloat64(operationElements[exponentIndex+1]))
+			operationElements = utils.ReplaceSlice(operationElements, exponentIndex-1, exponentIndex+2, fmt.Sprintf("%g", result))
 		}
 	}
 
+	for range operationElements {
+		if slices.Contains[[]string, string](operationElements, multiplication) {
+			multiplyIndex := slices.Index[[]string, string](operationElements, multiplication)
+			result := utils.StringToFloat64(operationElements[multiplyIndex-1]) * utils.StringToFloat64(operationElements[multiplyIndex+1])
+			operationElements = utils.ReplaceSlice(operationElements, multiplyIndex-1, multiplyIndex+2, fmt.Sprintf("%g", result))
+		}
+	}
+
+	for range operationElements {
+		if slices.Contains(operationElements, division) {
+			divisionIndex := slices.Index[[]string, string](operationElements, division)
+			result := utils.StringToFloat64(operationElements[divisionIndex-1]) / utils.StringToFloat64(operationElements[divisionIndex+1])
+			operationElements = utils.ReplaceSlice(operationElements, divisionIndex-1, divisionIndex+2, fmt.Sprintf("%g", result))
+		}
+	}
+
+	for range operationElements {
+		if slices.Contains(operationElements, addition) {
+			additionIndex := slices.Index[[]string, string](operationElements, addition)
+			result := utils.StringToFloat64(operationElements[additionIndex-1]) + utils.StringToFloat64(operationElements[additionIndex+1])
+			operationElements = utils.ReplaceSlice(operationElements, additionIndex-1, additionIndex+2, fmt.Sprintf("%g", result))
+		}
+	}
+
+	for range operationElements {
+		if slices.Contains(operationElements, sustraction) {
+			sustractionIndex := slices.Index[[]string, string](operationElements, sustraction)
+			result := utils.StringToFloat64(operationElements[sustractionIndex-1]) - utils.StringToFloat64(operationElements[sustractionIndex+1])
+			operationElements = utils.ReplaceSlice(operationElements, sustractionIndex-1, sustractionIndex+2, fmt.Sprintf("%g", result))
+		}
+	}
+
+	return utils.StringToFloat64(operationElements[0])
+}
+
+func moduleOperation(operationElements []string) float64 {
+	var result float64
+
+	for range operationElements {
+		if slices.Contains(operationElements, module) {
+			moduleIndex := slices.Index[[]string, string](operationElements, module)
+			result = utils.StringToFloat64(operationElements[moduleIndex-1]) -
+				math.Floor(utils.StringToFloat64(operationElements[moduleIndex-1])/utils.StringToFloat64(operationElements[moduleIndex+1]))*
+					utils.StringToFloat64(operationElements[moduleIndex+1])
+
+		}
+	}
 	return result
+}
+
+func processParenthesisGroups(operationElements []string, operator string) (args []string) {
+	groups := make([]string, 0)
+
+	for i, arg := range operationElements {
+		var result float64
+
+		if strings.Contains(arg, operator) {
+			parenthesisStr := strings.Join(operationElements, " ")
+			parenthesisCount := strings.Count(parenthesisStr, operator)
+			firstParenthesisIndex := strings.Index(parenthesisStr, operator)
+
+			if parenthesisCount > 1 && parenthesisStr[firstParenthesisIndex+1] == '(' {
+				lastParenthesisIndex := strings.LastIndex(parenthesisStr, operator)
+
+				for j := lastParenthesisIndex; j < len(parenthesisStr); j++ {
+					for k := j + 1; k < len(parenthesisStr); k++ {
+
+						if parenthesisStr[k] == ')' {
+							removeParenthesis := strings.ReplaceAll(parenthesisStr[lastParenthesisIndex:k], operator, "")
+							removeParenthesis = strings.ReplaceAll(removeParenthesis, ")", "")
+							fields := strings.Fields(removeParenthesis)
+							result = resolveOperations(fields)
+							oldStr := "(" + removeParenthesis + ")"
+							parenthesisStr = strings.ReplaceAll(parenthesisStr, oldStr, fmt.Sprintf("%g", result))
+							operationElements = strings.Fields(parenthesisStr)
+							break
+						}
+					}
+				}
+
+			} else {
+				for j := 0; j < len(operationElements); j++ {
+					if strings.Contains(operationElements[j], ")") {
+						removeParenthesis := strings.ReplaceAll(strings.Join(operationElements[i:j+1], " "), operator, "")
+						removeParenthesis = strings.ReplaceAll(removeParenthesis, ")", "")
+						result = resolveOperations(strings.Fields(removeParenthesis))
+						operationElements = utils.ReplaceSlice(operationElements, i, j+1, fmt.Sprintf("%g", result))
+						break
+					}
+				}
+			}
+		}
+
+		groups = slices.Delete[[]string](groups, 0, len(groups))
+	}
+
+	args = operationElements
+	return
+}
+
+func processOperationElements(operationElements []string, operator string) (args []string) {
+	groups := make([]string, 0)
+
+	for range operationElements {
+		var result float64
+
+		if slices.Contains(operationElements, operator) {
+			operatorIndex := slices.Index[[]string, string](operationElements, operator)
+
+			if operator == sustraction && len(operationElements[operatorIndex]) > 1 {
+				groups = append(groups, operationElements[operatorIndex:operatorIndex+3]...)
+				result = resolveOperations(groups)
+				operationElements = utils.ReplaceSlice(operationElements, operatorIndex, operatorIndex+3, fmt.Sprintf("%g", result))
+			} else {
+				groups = append(groups, operationElements[operatorIndex-1:operatorIndex+2]...)
+				result = resolveOperations(groups)
+				operationElements = utils.ReplaceSlice(operationElements, operatorIndex-1, operatorIndex+2, fmt.Sprintf("%g", result))
+			}
+		}
+
+		groups = slices.Delete[[]string](groups, 0, len(groups))
+	}
+
+	args = operationElements
+	return
 }

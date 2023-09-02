@@ -1,12 +1,13 @@
 package flags
 
 import (
-	calculator "calculator/calc"
 	"flag"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
+
+	"golang.org/x/exp/slices"
 )
 
 type commandLine struct {
@@ -22,8 +23,8 @@ type CustomFlag struct {
 
 func newCmdLine() *commandLine {
 	var cmd *commandLine
-	flagset := flag.NewFlagSet("Shell Calculator", flag.ExitOnError)
-	flagset.SetOutput(os.Stdout)
+	flagset := flag.NewFlagSet("Go Calculator", flag.ExitOnError)
+	flagset.SetOutput(os.Stderr)
 	cmd = &commandLine{FlagSet: flagset}
 	flagset.Usage = cmd.PrintDefault
 	return cmd
@@ -99,77 +100,82 @@ func (c *commandLine) PrintDefault() {
 	c.Usage()
 	hasSubnames := false
 
-	var names = make([]string, 0)
 	var groupName = make(map[string]string)
 	if len(c.formal) > 0 {
 		for fln, flag := range c.formal {
 			if flag.GroupName != "" && groupName[fln] != flag.GroupName {
 				groupName[fln] = flag.GroupName
-				hasSubnames = true
-			}
-
-			if groupName[fln] == flag.GroupName {
-				names = append(names, fln)
 			}
 		}
 	}
 
+	i := 0
+	seen := make([]string, 0)
 	c.VisitAll(func(f *CustomFlag) {
-		var b strings.Builder
-
-		var fname string
 		if hasSubnames {
-			for i := range names {
-				names[i] = fmt.Sprintf("-%s", names[i])
+			// os.Exit(0)
+			if i == len(groupName)-1 {
+				return
+			}
+		}
+
+		var b strings.Builder
+		var fname string
+		if groupName[f.Name] == f.GroupName {
+			names := make([]string, 0)
+			for flagName, gn := range groupName {
+				if gn == f.GroupName {
+					names = append(names, fmt.Sprintf("-%s", flagName))
+				}
 			}
 
 			fname = strings.Join(names, ", ")
-			fmt.Fprintf(&b, "   %s:", fname)
+			fmt.Fprintf(&b, "   \033[01;05m%s:\033[00m", fname)
+
+			hasSubnames = true
 		} else {
 			fname = f.Name
-			fmt.Fprintf(&b, "   -%s:", fname)
+			fmt.Fprintf(&b, "   \033[01;05m-%s:\033[00m", fname)
+			hasSubnames = false
 		}
 
-		name, usage := flag.UnquoteUsage(&f.Flag)
-		if len(name) > 0 {
-			b.WriteString(" ")
-			b.WriteString(name)
-		}
+		if !slices.Contains[[]string](seen, f.GroupName) {
 
-		if f.DefValue == "" {
-			fmt.Fprintf(&b, " (default %q)\n", f)
-		} else {
-			fmt.Fprintf(&b, " (default %v)\n", f.DefValue)
-		}
+			name, usage := flag.UnquoteUsage(&f.Flag)
+			if len(name) > 0 {
+				b.WriteString(" \033[01;05;33m")
+				b.WriteString(" ")
+				b.WriteString(name)
+				b.WriteString(" \033[00m")
+			}
 
-		b.WriteString("\n    \t")
-		b.WriteString(strings.ReplaceAll(usage, "\n", "\n    \t"))
+			b.WriteString(" \033[01;04;35m")
+			if f.DefValue == "" {
+				fmt.Fprintf(&b, "(default %q)\n", f)
+			} else {
+				fmt.Fprintf(&b, "(default %v)\n", f.DefValue)
+			}
+			b.WriteString("\033[00m")
 
-		if f.Example != "" {
-			b.WriteString("\n    \tExample:\n")
-			b.WriteString(strings.ReplaceAll(f.Example, "\n", "\n   \t"))
-		}
+			b.WriteString("\n    \t\033[01;32m")
+			b.WriteString(strings.ReplaceAll(usage, "\n", "\n    \t"))
+			b.WriteString("\033[00m")
 
-		fmt.Fprint(c.Output(), b.String(), "\n")
-		if hasSubnames {
-			os.Exit(0)
+			if f.Example != "" {
+				b.WriteString("\033[05;36m")
+				b.WriteString("\n    \tExample:\n")
+				b.WriteString(strings.ReplaceAll(f.Example, "\n", "\n   \t"))
+				b.WriteString("\033[00m\n")
+			}
+
+			fmt.Fprintf(c.Output(), "%s\n\033[00m", b.String())
 		}
+		i++
+		seen = append(seen, f.GroupName)
 	})
 }
 
 func splitIntoMultiname(fname string) []string {
 	fname = strings.ReplaceAll(fname, " ", "")
 	return strings.Split(fname, ",")
-}
-
-func (f *PrecisionFlag) Set(p string) error {
-	var verb string
-
-	fmt.Sscanf(p, "%s", &verb)
-
-	if !strings.Contains(verb, "%") {
-		verb = strings.Replace(verb, verb, "%."+verb+"f", 1)
-	}
-	f.CalculatorPrecision = calculator.CalculatorPrecision(verb)
-	return nil
 }
