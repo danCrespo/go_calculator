@@ -63,14 +63,20 @@ func (c *Calculator) StartCalculation(resultOperationCh chan float64, args []str
 
 		for i := 0; i < len(inp); i++ {
 			if inp[i] != ' ' {
-				if signsRegex.Match([]byte(string(inp[i]))) {
-					if inp[i] == '-' && inp[i+1] != ' ' && !parenthesisRegex.Match([]byte(string(inp[i+1]))) {
-						input += " " + string(inp[i])
-					} else {
-						input += " " + string(inp[i]) + " "
-					}
+				if inp[i] == '-' && (inp[i-1] != ' ' && !parenthesisRegex.Match([]byte(string(inp[i-1])))) && (inp[i+1] != ' ' && !parenthesisRegex.Match([]byte(string(inp[i+1])))) {
+					input += " " + string(inp[i]) + " "
 				} else {
-					input += string(inp[i])
+
+					if signsRegex.Match([]byte(string(inp[i]))) {
+						if inp[i] == '-' && inp[i+1] != ' ' && !parenthesisRegex.Match([]byte(string(inp[i+1]))) {
+							input += " " + string(inp[i])
+						} else {
+
+							input += " " + string(inp[i]) + " "
+						}
+					} else {
+						input += string(inp[i])
+					}
 				}
 			}
 		}
