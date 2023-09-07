@@ -10,6 +10,7 @@ import (
 	"golang.org/x/exp/slices"
 
 	"calculator/flags"
+	"calculator/geometry"
 	"calculator/utils"
 )
 
@@ -30,6 +31,7 @@ type CalculatorInstance interface {
 type Calculator struct {
 	Precision *flags.CalculatorPrecision
 	Hierachy  *flags.CalculatorHierarchy
+	Area      *flags.CalculatorFigureArea
 	Result    float64
 }
 
@@ -37,6 +39,7 @@ func NewCalculator(flags flags.CalculatorFlags) CalculatorInstance {
 	c := &Calculator{
 		Precision: flags.CalculatorPrecision,
 		Hierachy:  flags.CalculatorHierarchy,
+		Area:      flags.CalculatorFigureArea,
 	}
 	return c
 }
@@ -49,48 +52,63 @@ func (c *Calculator) PrintResults(result chan float64) {
 }
 
 func (c *Calculator) StartCalculation(resultOperationCh chan float64, args []string) {
+	go func() {
+		var result float64
+		defer close(resultOperationCh)
+
+		if c.Area.String() != " " {
+			fmt.Println("arithmeticOperations results", c.Area)
+			result = geometry.Area(args, string(*c.Area))
+		} else {
+			result = arithmeticOperations(args)
+		}
+		resultOperationCh <- result
+	}()
+}
+
+func arithmeticOperations(args []string) float64 {
+	var results float64
+
 	signsRegex := regexp.MustCompile(`([\*/\+\-%\^]){1}`)
 	parenthesisRegex := regexp.MustCompile(`([(\)]){1}`)
 
-	go func() {
-		defer close(resultOperationCh)
-		if len(args) == 1 {
-			args = strings.Split(args[0], "")
-		}
+	if len(args) == 1 {
+		args = strings.Split(args[0], "")
+	}
 
-		inp := strings.Join(args, "")
-		var input string
+	inp := strings.Join(args, "")
+	var input string
 
-		for i := 0; i < len(inp); i++ {
-			if inp[i] != ' ' {
-				if inp[i] == '-' && (inp[i-1] != ' ' && !parenthesisRegex.Match([]byte(string(inp[i-1])))) && (inp[i+1] != ' ' && !parenthesisRegex.Match([]byte(string(inp[i+1])))) {
-					input += " " + string(inp[i]) + " "
-				} else {
+	for i := 0; i < len(inp); i++ {
+		if inp[i] != ' ' {
+			if inp[i] == '-' && (inp[i-1] != ' ' && !parenthesisRegex.Match([]byte(string(inp[i-1])))) && (inp[i+1] != ' ' && !parenthesisRegex.Match([]byte(string(inp[i+1])))) {
+				input += " " + string(inp[i]) + " "
+			} else {
 
-					if signsRegex.Match([]byte(string(inp[i]))) {
-						if inp[i] == '-' && inp[i+1] != ' ' && !parenthesisRegex.Match([]byte(string(inp[i+1]))) {
-							input += " " + string(inp[i])
-						} else {
-
-							input += " " + string(inp[i]) + " "
-						}
+				if signsRegex.Match([]byte(string(inp[i]))) {
+					if inp[i] == '-' && inp[i+1] != ' ' && !parenthesisRegex.Match([]byte(string(inp[i+1]))) {
+						input += " " + string(inp[i])
 					} else {
-						input += string(inp[i])
+
+						input += " " + string(inp[i]) + " "
 					}
+				} else {
+					input += string(inp[i])
 				}
 			}
 		}
+	}
 
-		fields := strings.Fields(input)
+	fields := strings.Fields(input)
 
-		if slices.Contains[[]string, string](fields, module) {
-			r := moduleOperation(fields)
-			resultOperationCh <- r
-		} else {
-			pemdasOrder := PEMDASOrder(fields)
-			resultOperationCh <- pemdasOrder
-		}
-	}()
+	if slices.Contains[[]string, string](fields, module) {
+		results = moduleOperation(fields)
+	} else {
+		results = PEMDASOrder(fields)
+	}
+	fmt.Println("arithmeticOperations results", results)
+
+	return results
 }
 
 func PEMDASOrder(args []string) float64 {
