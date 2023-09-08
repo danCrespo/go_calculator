@@ -23,54 +23,82 @@ const (
 	exponent       = "^"
 )
 
+var (
+	signsRegex       = regexp.MustCompile(`([\*/\+\-%\^]){1}`)
+	parenthesisRegex = regexp.MustCompile(`([(\)]){1}`)
+)
+
 type CalculatorInstance interface {
-	StartCalculation(result chan float64, args []string)
-	PrintResults(result chan float64)
+	StartCalculation(resultOperationCh chan map[string]any, args []string)
+	PrintResults(results chan map[string]any)
 }
 
 type Calculator struct {
-	Precision *flags.CalculatorPrecision
-	Hierachy  *flags.CalculatorHierarchy
-	Area      *flags.CalculatorFigureArea
-	Result    float64
+	Precision    *flags.CalculatorPrecision
+	Trigonometry *flags.CalculatorTrigonometry
+	Area         *flags.CalculatorFigureArea
 }
 
 func NewCalculator(flags flags.CalculatorFlags) CalculatorInstance {
 	c := &Calculator{
-		Precision: flags.CalculatorPrecision,
-		Hierachy:  flags.CalculatorHierarchy,
-		Area:      flags.CalculatorFigureArea,
+		Precision:    flags.CalculatorPrecision,
+		Trigonometry: flags.CalculatorTrigonometry,
+		Area:         flags.CalculatorFigureArea,
 	}
 	return c
 }
 
-func (c *Calculator) PrintResults(result chan float64) {
-	for r := range result {
-		c.Result = r
-		fmt.Fprintf(os.Stdout, "\v \033[01;05;32mResult: \033[01;05;36m "+string(*c.Precision)+"\033[00m\n\v", c.Result)
+func (c *Calculator) PrintResults(results chan map[string]any) {
+	for ch := range results {
+		for k, r := range ch {
+
+			if k == "errorResult" {
+				fmt.Fprintf(os.Stderr, "\v \033[01;05;31mError: \033[01;05;36m%v\033[00m\n\v", r.(error))
+			} else if k == "result" {
+				fmt.Fprintf(os.Stdout, "\v \033[01;05;32mResult: \033[01;05;36m "+string(*c.Precision)+"\033[00m\n\v", r.(float64))
+			}
+		}
 	}
 }
 
-func (c *Calculator) StartCalculation(resultOperationCh chan float64, args []string) {
+func (c *Calculator) StartCalculation(resultOperationCh chan map[string]any, args []string) {
 	go func() {
-		var result float64
+		chMap := make(map[string]any)
 		defer close(resultOperationCh)
 
 		if c.Area.String() != " " {
-			fmt.Println("arithmeticOperations results", c.Area)
-			result = geometry.Area(args, string(*c.Area))
+			for _, arg := range args {
+				if signsRegex.MatchString(arg) || parenthesisRegex.MatchString(arg) {
+					var backupArg string
+					var argSplit []string
+					argIndex := slices.Index[[]string](args, arg)
+
+					if strings.Contains(arg, "=") {
+						argSplit = strings.Split(arg, "=")
+						fmt.Sscanf(argSplit[0], "%s=", &backupArg)
+						arg = fmt.Sprintf("%s=%g", backupArg, prepareArguments([]string{argSplit[1]}))
+					} else {
+						arg = fmt.Sprintf("%g", prepareArguments([]string{arg}))
+					}
+
+					args = slices.Replace[[]string, string](args, argIndex, argIndex+1, arg)
+				}
+			}
+			res, err := geometry.Area(args, string(*c.Area))
+			if err != nil {
+				chMap["errorResult"] = err
+			} else {
+				chMap["result"] = res
+			}
 		} else {
-			result = arithmeticOperations(args)
+			chMap["result"] = prepareArguments(args)
 		}
-		resultOperationCh <- result
+		resultOperationCh <- chMap
 	}()
 }
 
-func arithmeticOperations(args []string) float64 {
+func prepareArguments(args []string) float64 {
 	var results float64
-
-	signsRegex := regexp.MustCompile(`([\*/\+\-%\^]){1}`)
-	parenthesisRegex := regexp.MustCompile(`([(\)]){1}`)
 
 	if len(args) == 1 {
 		args = strings.Split(args[0], "")
@@ -106,7 +134,6 @@ func arithmeticOperations(args []string) float64 {
 	} else {
 		results = PEMDASOrder(fields)
 	}
-	fmt.Println("arithmeticOperations results", results)
 
 	return results
 }

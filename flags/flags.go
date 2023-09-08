@@ -11,13 +11,13 @@ import (
 type (
 	CalculatorFlags struct {
 		*CalculatorPrecision
-		*CalculatorHierarchy
+		*CalculatorTrigonometry
 		*CalculatorFigureArea
 	}
 
 	CalculatorPrecision string
 
-	CalculatorHierarchy bool
+	CalculatorTrigonometry bool
 
 	CalculatorFigureArea string
 
@@ -25,8 +25,8 @@ type (
 		CalculatorPrecision
 	}
 
-	HierarchyFlag struct {
-		CalculatorHierarchy
+	TrigonometryFlag struct {
+		CalculatorTrigonometry
 	}
 
 	AreaFlag struct {
@@ -38,7 +38,7 @@ func (c CalculatorPrecision) String() string {
 	return string(c)
 }
 
-func (c CalculatorHierarchy) String() string {
+func (c CalculatorTrigonometry) String() string {
 	return strconv.FormatBool(bool(c))
 }
 
@@ -79,34 +79,30 @@ func Precision(name string, value CalculatorPrecision, usage string, examples ..
 	return &f
 }
 
-func (f *HierarchyFlag) Set(v string) error {
+func (f *TrigonometryFlag) Set(v string) error {
 	var value bool
 
 	fmt.Sscanf(v, "%b", &value)
 	switch v {
-	case "no":
-	case "false":
-	case "off":
-		f.CalculatorHierarchy = CalculatorHierarchy(!value)
+	case "no", "false", "off":
+		f.CalculatorTrigonometry = CalculatorTrigonometry(!value)
 		return nil
 
-	case "yes":
-	case "true":
-	case "on":
-		f.CalculatorHierarchy = CalculatorHierarchy(value)
+	case "yes", "true", "on", "y", " ":
+		f.CalculatorTrigonometry = CalculatorTrigonometry(value)
 		return nil
 	}
 
 	return fmt.Errorf("%s is not a valid argument", v)
 }
 
-func (f *HierarchyFlag) Var(name, usage string, example ...string) *CalculatorHierarchy {
+func (f *TrigonometryFlag) Var(name, usage string, example ...string) *CalculatorTrigonometry {
 	cmd.Var(f, name, usage, example...)
-	return &f.CalculatorHierarchy
+	return &f.CalculatorTrigonometry
 }
 
-func Hierachy(name string, value CalculatorHierarchy, usage string, examples ...string) *HierarchyFlag {
-	f := HierarchyFlag{value}
+func Trigonometry(name string, value CalculatorTrigonometry, usage string, examples ...string) *TrigonometryFlag {
+	f := TrigonometryFlag{value}
 	cmd.Var(&f, name, usage, examples...)
 	return &f
 }
