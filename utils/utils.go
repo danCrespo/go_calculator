@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"regexp"
 	"slices"
+	"strings"
 )
 
 func StringToFloat64(s string) float64 {
 	var res float64
-	if _, err := fmt.Sscanf(s, "%v\n", &res); err != nil {
-		log.Printf("error %v\n", err)
+	if _, err := fmt.Sscanf(s, "%v", &res); err != nil {
+		log.Printf("error %v", err)
 	}
 	return res
 }
@@ -23,4 +25,78 @@ func ReplaceSlice(s []string, i, j int, r string) []string {
 func DegreesToRadians(degrees float64) float64 {
 	result := degrees * (math.Pi / 180)
 	return result
+}
+
+func StringContains(value string, patterns ...string) bool {
+	for _, pattern := range patterns {
+		if strings.Contains(value, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+func StringContainsAndWhatContains(value string, patterns ...string) (bool, []string) {
+	result := false
+	patternsMatched := make([]string, 0)
+	for i, pattern := range patterns {
+		if strings.Contains(value, pattern) {
+			result = true
+			patternsMatched = append(patternsMatched, pattern)
+		}
+
+		if i == len(patterns)-1 {
+			break
+		}
+		continue
+	}
+
+	slices.Sort[[]string, string](patternsMatched)
+	return result, patternsMatched
+}
+
+func SlicesContains(s []any, patterns ...string) bool {
+	for _, pattern := range patterns {
+		if slices.Contains[[]any, any](s, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+var (
+	SignsRegex       = regexp.MustCompile(`([\*/\+\-%\^]){1}`)
+	ParenthesisRegex = regexp.MustCompile(`([(\)]){1}`)
+)
+
+func PrepareArguments(args []string) []string {
+	if len(args) == 1 {
+		args = strings.Split(args[0], "")
+	}
+
+	inp := strings.Join(args, "")
+	var input string
+
+	for i := 0; i < len(inp); i++ {
+		if inp[i] != ' ' {
+			if inp[i] == '-' && (inp[i-1] != ' ' && !ParenthesisRegex.Match([]byte(string(inp[i-1])))) && (inp[i+1] != ' ' && !ParenthesisRegex.Match([]byte(string(inp[i+1])))) {
+				input += " " + string(inp[i]) + " "
+			} else {
+
+				if SignsRegex.Match([]byte(string(inp[i]))) {
+					if inp[i] == '-' && inp[i+1] != ' ' && !ParenthesisRegex.Match([]byte(string(inp[i+1]))) {
+						input += " " + string(inp[i])
+					} else {
+
+						input += " " + string(inp[i]) + " "
+					}
+				} else {
+					input += string(inp[i])
+				}
+			}
+		}
+	}
+
+	fields := strings.Fields(input)
+	return fields
 }

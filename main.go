@@ -1,8 +1,11 @@
 package main
 
 import (
+	"calculator/arithmetic"
 	calculator "calculator/calc"
 	"calculator/flags"
+	"calculator/geometry"
+	"calculator/trigonometry"
 )
 
 var (
@@ -35,7 +38,7 @@ var (
 
 func init() {
 	calcPrecision = &flags.Precision("p, precision", "%g", percisionUsage+" ", precisionExamples).CalculatorPrecision
-	calcTrigonometry = &flags.Trigonometry("t, trigonometry", true, trigonometryUsage, trigonometryExamples).CalculatorTrigonometry
+	calcTrigonometry = &flags.Trigonometry("t, trigonometry", false, trigonometryUsage, trigonometryExamples).CalculatorTrigonometry
 	calcFigureArea = &flags.Area("a, area", " ", areaUsage, areaExample).CalculatorFigureArea
 }
 
@@ -44,13 +47,19 @@ func main() {
 
 	var operationResultCh = make(chan map[string]any)
 
+	a := arithmetic.Arithmetic()
+	g := geometry.Geometry(a)
+	t := trigonometry.Trigonometry(a)
+
 	calcFlags := flags.CalculatorFlags{
 		CalculatorPrecision:    calcPrecision,
 		CalculatorTrigonometry: calcTrigonometry,
 		CalculatorFigureArea:   calcFigureArea,
 	}
 
-	c := calculator.NewCalculator(calcFlags)
+	mathFields := calculator.MathFields{ArithmeticArea: a, GeometryArea: g, TrigonometryArea: t}
+
+	c := calculator.NewCalculator(calcFlags, mathFields)
 	c.StartCalculation(operationResultCh, flags.Args())
 	c.PrintResults(operationResultCh)
 }

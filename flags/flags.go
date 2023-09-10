@@ -1,7 +1,7 @@
 package flags
 
 import (
-	"calculator/geometry"
+	geometry "calculator/utils"
 	"fmt"
 	"os"
 	"strconv"
@@ -80,16 +80,16 @@ func Precision(name string, value CalculatorPrecision, usage string, examples ..
 }
 
 func (f *TrigonometryFlag) Set(v string) error {
-	var value bool
+	var value string
 
-	fmt.Sscanf(v, "%b", &value)
-	switch v {
+	fmt.Sscanf(v, "%s", &value)
+	switch value {
 	case "no", "false", "off":
-		f.CalculatorTrigonometry = CalculatorTrigonometry(!value)
+		f.CalculatorTrigonometry = CalculatorTrigonometry(false)
 		return nil
 
-	case "yes", "true", "on", "y", " ":
-		f.CalculatorTrigonometry = CalculatorTrigonometry(value)
+	case "yes", "true", "on", "y":
+		f.CalculatorTrigonometry = CalculatorTrigonometry(true)
 		return nil
 	}
 

@@ -10,58 +10,43 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-const (
-	Square    = "square"
-	Triangle  = "triangle"
-	Circle    = "circle"
-	Rectangle = "rectangle"
-	Trapezoid = "trapezoid"
-	Rhombus   = "rhombus"
-	Ellipse   = "ellipse"
-)
-
-func Area(measures []string, figure string) (float64, error) {
+func area(measures []string, figure string) (float64, error) {
 	var result float64
 
+	if err := checkRequiredMeasures(measures, figure); err != nil {
+		return result, err
+	}
+
 	switch figure {
-	case Square:
+	case utils.Square:
 		result = squareArea(measures)
-	case Triangle:
-		if err := checkRequiredMeasures(measures, figure); err != nil {
-			return result, err
-		}
+	case utils.Triangle:
+		// if err := checkRequiredMeasures(measures, figure); err != nil {
+		// 	return result, err
+		// }
 		result = triangleArea(measures)
-	case Circle:
+	case utils.Circle:
 		result = circleArea(measures)
-	case Rectangle:
-		if err := checkRequiredMeasures(measures, figure); err != nil {
-			return result, err
-		}
+	case utils.Rectangle:
+		// if err := checkRequiredMeasures(measures, figure); err != nil {
+		// 	return result, err
+		// }
 		result = rectangleArea(measures)
-	case Trapezoid:
-		if err := checkRequiredMeasures(measures, figure); err != nil {
-			return result, err
-		}
+	case utils.Trapezoid:
+		// if err := checkRequiredMeasures(measures, figure); err != nil {
+		// 	return result, err
+		// }
 		result = trapezoidArea(measures)
-	case Rhombus:
-		if err := checkRequiredMeasures(measures, figure); err != nil {
-			return result, err
-		}
+	case utils.Rhombus:
+		// if err := checkRequiredMeasures(measures, figure); err != nil {
+		// 	return result, err
+		// }
 		result = rhombusdArea(measures)
-	case Ellipse:
+	case utils.Ellipse:
 		result = ellipseArea(measures)
 	}
 
 	return result, nil
-}
-
-func contains(value string, patterns ...string) bool {
-	for _, pattern := range patterns {
-		if strings.Contains(value, pattern) {
-			return true
-		}
-	}
-	return false
 }
 
 func squareArea(measures []string) float64 {
@@ -76,7 +61,7 @@ func triangleArea(measures []string) float64 {
 		measuresStr = strings.Join(measures, " ")
 	)
 
-	if contains(measuresStr, "b=") && contains(measuresStr, "h=") {
+	if utils.StringContains(measuresStr, "b=") && utils.StringContains(measuresStr, "h=") {
 		slices.Sort[[]string](measures)
 		measuresStr = strings.Join(measures, " ")
 
@@ -103,7 +88,7 @@ func rectangleArea(measures []string) float64 {
 		measuresStr = strings.Join(measures, " ")
 	)
 
-	if contains(measuresStr, "b=") && contains(measuresStr, "h=") {
+	if utils.StringContains(measuresStr, "b=") && utils.StringContains(measuresStr, "h=") {
 		slices.Sort[[]string](measures)
 		measuresStr = strings.Join(measures, " ")
 
@@ -124,7 +109,7 @@ func trapezoidArea(measures []string) float64 {
 		measuresStr = strings.Join(measures, " ")
 	)
 
-	if contains(measuresStr, "sideA=") && contains(measuresStr, "sideB=") && contains(measuresStr, "h=") {
+	if utils.StringContains(measuresStr, "sideA=") && utils.StringContains(measuresStr, "sideB=") && utils.StringContains(measuresStr, "h=") {
 		slices.Sort[[]string](measures)
 		measuresStr = strings.Join(measures, " ")
 
@@ -149,7 +134,7 @@ func rhombusdArea(measures []string) float64 {
 		measuresStr = strings.Join(measures, " ")
 	)
 
-	if contains(measuresStr, "d1=") && contains(measuresStr, "d2=") {
+	if utils.StringContains(measuresStr, "d1=") && utils.StringContains(measuresStr, "d2=") {
 		slices.Sort[[]string](measures)
 		measuresStr = strings.Join(measures, " ")
 
@@ -157,7 +142,7 @@ func rhombusdArea(measures []string) float64 {
 		result = (diagonalA * diagonalB) / 2
 	}
 
-	if contains(measuresStr, "b=") && contains(measuresStr, "h=") {
+	if utils.StringContains(measuresStr, "b=") && utils.StringContains(measuresStr, "h=") {
 		slices.Sort[[]string](measures)
 		measuresStr = strings.Join(measures, " ")
 
@@ -165,7 +150,7 @@ func rhombusdArea(measures []string) float64 {
 		result = base * height
 	}
 
-	if contains(measuresStr, "side=") && contains(measuresStr, "angle=") {
+	if utils.StringContains(measuresStr, "side=") && utils.StringContains(measuresStr, "angle=") {
 		slices.Sort[[]string](measures)
 		measuresStr = strings.Join(measures, " ")
 
@@ -190,11 +175,11 @@ func checkRequiredMeasures(measures []string, figure string) error {
 	errStr.WriteString("Invalid pattern or number of arguments. ")
 
 	switch figure {
-	case Triangle, Rectangle:
+	case utils.Triangle, utils.Rectangle:
 		if measuresLen == 2 {
 			m1, m2 := measures[0], measures[1]
-			if contains(m1, "=") && contains(m2, "=") {
-				if !contains(m1, "b=", "h=") || !contains(m2, "h=", "b=") {
+			if utils.StringContains(m1, "=") && utils.StringContains(m2, "=") {
+				if !utils.StringContains(m1, "b=", "h=") || !utils.StringContains(m2, "h=", "b=") {
 					errStr.WriteString(fmt.Sprintf("Arguments to the %s must be of the following form: b=[number] h=[number]\n", figure))
 					return errors.New(errStr.String())
 				}
@@ -204,11 +189,11 @@ func checkRequiredMeasures(measures []string, figure string) error {
 			return errors.New(errStr.String())
 		}
 
-	case Trapezoid:
+	case utils.Trapezoid:
 		if measuresLen == 3 {
 			m1, m2, m3 := measures[0], measures[1], measures[2]
-			if contains(m1, "=") && contains(m2, "=") && contains(m3, "=") {
-				if !contains(m1, "sideA=") || !contains(m2, "sideB=") || !contains(m3, "h=") {
+			if utils.StringContains(m1, "=") && utils.StringContains(m2, "=") && utils.StringContains(m3, "=") {
+				if !utils.StringContains(m1, "sideA=") || !utils.StringContains(m2, "sideB=") || !utils.StringContains(m3, "h=") {
 					errStr.WriteString(fmt.Sprintf("Arguments to the %s must be of the following form: sideA=[number] sideB=[number] h=[number]\n", figure))
 					return errors.New(errStr.String())
 				}
@@ -218,11 +203,11 @@ func checkRequiredMeasures(measures []string, figure string) error {
 			return errors.New(errStr.String())
 		}
 
-	case Rhombus:
+	case utils.Rhombus:
 		if measuresLen == 2 {
 			m1, m2 := measures[0], measures[1]
-			if contains(m1, "=") && contains(m2, "=") {
-				if !contains(m1, "d1=", "d2=", "b=", "h=", "side=", "angle=") || !contains(m2, "d1=", "d2=", "b=", "h=", "side=", "angle=") {
+			if utils.StringContains(m1, "=") && utils.StringContains(m2, "=") {
+				if !utils.StringContains(m1, "d1=", "d2=", "b=", "h=", "side=", "angle=") || !utils.StringContains(m2, "d1=", "d2=", "b=", "h=", "side=", "angle=") {
 					errStr.WriteString(fmt.Sprintf("Arguments to the %s must be of the following form: [d1|b|side]=number [d2|h|angle]=[number]\n", figure))
 					return errors.New(errStr.String())
 				}
