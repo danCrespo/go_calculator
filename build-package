@@ -6,7 +6,7 @@ os_type="$(uname -o)"
 dir=$1
 
 case "${os_type}" in
-  Darwin,GNU/Linux)
+  Darwin | GNU/Linux)
     output_path=/opt/artifacts/go-calculator
     ;;
   *)
