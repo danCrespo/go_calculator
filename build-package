@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# set -x
+
+os_type="$(uname -o)"
+dir=${0%/*}
+
+case "${os_type}" in
+  Darwin,GNU/Linux)
+    output_path=/opt/artifacts/go-calculator
+    ;;
+  *)
+    output_path="${dir}/go-calculator"
+    ;;
+esac
+
+go build -o "${output_path}" -buildmode=exe "${dir}"

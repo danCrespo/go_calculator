@@ -12,6 +12,8 @@ runtimes:
     - node@18.12.1
     - python@3.10.8
 lint:
+  disabled:
+    - shellcheck
   enabled:
     - checkov@2.4.9
     - git-diff-check
@@ -20,15 +22,17 @@ lint:
     - golangci-lint@1.54.2
     - osv-scanner@1.3.6
     - prettier@3.0.3
-    - shellcheck@0.9.0
     - shfmt@3.6.0
     - trivy@0.45.0
-    - trufflehog@3.54.3
+    - trufflehog@3.55.1
     - yamllint@1.32.0
+
 actions:
   disabled:
+    - trunk-check-pre-push
     - trunk-fmt-pre-commit
   enabled:
     - trunk-announce
-    - trunk-check-pre-push
+    - trunk-check-pre-commit
+    - go-mod-tidy
     - trunk-upgrade-available
