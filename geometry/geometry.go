@@ -1,11 +1,12 @@
 package geometry
 
 import (
-	"calculator/arithmetic"
-	"calculator/utils"
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/danCrespo/go_calculator/arithmetic"
+	"github.com/danCrespo/go_calculator/utils"
 )
 
 type (

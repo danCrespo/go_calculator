@@ -1,11 +1,12 @@
 package trigonometry
 
 import (
-	"calculator/arithmetic"
-	"calculator/utils"
 	"fmt"
 	"math"
 	"strings"
+
+	"github.com/danCrespo/go_calculator/arithmetic"
+	"github.com/danCrespo/go_calculator/utils"
 )
 
 const (

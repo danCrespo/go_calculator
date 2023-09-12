@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/exp/slices"
 
-	"calculator/utils"
+	"github.com/danCrespo/go_calculator/utils"
 )
 
 const (

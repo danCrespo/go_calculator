@@ -1,11 +1,12 @@
 package flags
 
 import (
-	geometry "calculator/utils"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+
+	geometry "github.com/danCrespo/go_calculator/utils"
 )
 
 type (
@@ -53,7 +54,10 @@ func Args() []string {
 }
 
 func Parse() {
-	cmd.FlagSet.Parse(os.Args[1:])
+	if err := cmd.FlagSet.Parse(os.Args[1:]); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
 func (f *PrecisionFlag) Var(name, usage string, example ...string) *CalculatorPrecision {

@@ -1,11 +1,11 @@
 package main
 
 import (
-	"calculator/arithmetic"
-	calculator "calculator/calc"
-	"calculator/flags"
-	"calculator/geometry"
-	"calculator/trigonometry"
+	"github.com/danCrespo/go_calculator/arithmetic"
+	calculator "github.com/danCrespo/go_calculator/calc"
+	"github.com/danCrespo/go_calculator/flags"
+	"github.com/danCrespo/go_calculator/geometry"
+	"github.com/danCrespo/go_calculator/trigonometry"
 )
 
 var (

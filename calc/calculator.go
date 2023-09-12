@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"calculator/arithmetic"
-	"calculator/flags"
-	"calculator/geometry"
-	"calculator/trigonometry"
-	"calculator/utils"
+	"github.com/danCrespo/go_calculator/arithmetic"
+	"github.com/danCrespo/go_calculator/flags"
+	"github.com/danCrespo/go_calculator/geometry"
+	"github.com/danCrespo/go_calculator/trigonometry"
+	"github.com/danCrespo/go_calculator/utils"
 )
 
 type (

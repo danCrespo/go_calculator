@@ -1,5 +1,5 @@
-module calculator
+module github.com/danCrespo/go_calculator
 
-go 1.21.0
+go 1.21
 
 require golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63

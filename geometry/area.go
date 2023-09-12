@@ -1,11 +1,12 @@
 package geometry
 
 import (
-	"calculator/utils"
 	"errors"
 	"fmt"
 	"math"
 	"strings"
+
+	"github.com/danCrespo/go_calculator/utils"
 
 	"golang.org/x/exp/slices"
 )
