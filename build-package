@@ -3,7 +3,7 @@
 set -x
 
 build_binary() {
-  local dir, os_type, output_path
+  local dir os_type output_path
   dir=$1
   os_type="$(uname -o)"
 
@@ -22,7 +22,7 @@ build_binary() {
 
 upload_release() {
 
-  local data, release_id
+  local data release_id
   data=("{\"tag_name\":\"${TAG}\",\"target_commitish\":\"master\",\"name\":\"go-calculator@${TAG}\",\"body\":\"go-calculator release\",\"draft\":false,\"prerelease\":false,\"generate_release_notes\":false}")
   release_id="curl -L -H \"Accept: application/vnd.github+json\" -H \"Authorization: Bearer ${GH_TOKEN}\" -H \"X-GitHub-Api-Version: 2022-11-28\" https://api.github.com/repos/${REPOSITORY}/releases/latest"
 
