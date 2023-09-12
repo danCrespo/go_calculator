@@ -9,7 +9,7 @@ build_binary() {
 
   case "${os_type}" in
     Darwin | GNU/Linux)
-      output_path=/opt/artifacts
+      output_path=/opt/artifacts/go-calculator
       ;;
     *)
       echo -e "Unsupported OS. supported OS includes just: Linux and Darwin"
