@@ -2,16 +2,51 @@
 
 set -x
 
-os_type="$(uname -o)"
-dir=$1
+build_binary() {
+  local dir, os_type, output_path
+  dir=$1
+  os_type="$(uname -o)"
 
-case "${os_type}" in
-  Darwin | GNU/Linux)
-    output_path=/opt/artifacts/go-calculator
-    ;;
-  *)
-    output_path="${dir}/go-calculator"
-    ;;
-esac
+  case "${os_type}" in
+    Darwin | GNU/Linux)
+      output_path=/opt/artifacts
+      ;;
+    *)
+      echo -e "Unsupported OS. supported OS includes just: Linux and Darwin"
+      return 1
+      ;;
+  esac
 
-go build -o "${output_path}" -buildmode=exe "${dir}"
+  go build -o "${output_path}" -buildmode=exe "${dir}" && gzip "${output_path}"
+}
+
+upload_release() {
+
+  local data, release_id
+  data=("{\"tag_name\":\"${TAG}\",\"target_commitish\":\"master\",\"name\":\"go-calculator@${TAG}\",\"body\":\"go-calculator release\",\"draft\":false,\"prerelease\":false,\"generate_release_notes\":false}")
+  release_id="curl -L -H \"Accept: application/vnd.github+json\" -H \"Authorization: Bearer ${GH_TOKEN}\" -H \"X-GitHub-Api-Version: 2022-11-28\" https://api.github.com/repos/${REPOSITORY}/releases/latest"
+
+  if curl -L \
+    -X POST \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: Bearer ${GH_TOKEN}" \
+    "https://api.github.com/repos/${REPOSITORY}/releases" \
+    -d "${data[0]}" >/dev/null 2>&1; then
+
+    release="$(bash -c "${release_id}")"
+
+    curl -L \
+      -X POST \
+      -H "Accept: application/vnd.github+json" \
+      -H "Authorization: Bearer ${GH_TOKEN}" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      -H "Content-Type: application/octet-stream" \
+      "https://uploads.github.com/repos/${REPOSITORY}/releases/${release}/assets?name=${BINARY}" \
+      --data-binary "${BINARY}"
+  else
+    return $!
+  fi
+}
+
+export build_binary
+export upload_release

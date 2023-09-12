@@ -3,6 +3,9 @@ name: Build go-calculator
 on:
   push:
     branches: [master]
+    tags: 
+      - v0.*
+      - v1.*
   pull_request:
     branches: [master]
   workflow_dispatch:
@@ -31,14 +34,48 @@ jobs:
           install-mode: goinstall
 
       - name: Build
+        id: build
         env:
           dir: ${{ github.workspace }}
         run: |
-          chmod +x ${{ env.dir }}/build-package
-          . ${{ env.dir }}/build-package ${{ env.dir }}
+          script="${{ env.dir }}/build-package"
+          chmod +x "${script}"
+          source<(${script})
+          build_binary ${{ env.dir }}
           
       - name: uploadArtifact
         uses: actions/upload-artifact@v3
+        if: success()
         with:
           name: go-calculator
-          path: /opt/artifacts/go-calculator
+          path: /opt/artifacts
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: download binary
+        uses: actions/download-artifact@v3
+        id: download
+        with:
+          name: go-calculator
+            
+      - name: Upload Release
+        env:
+          dir: ${{ github.workspace }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          TAG: ${{ github.ref_type == 'tag' && github.event.ref || github.event.commits.id }}
+        if: success()
+
+        run: |
+          export GH_TOKEN="${{ env.GH_TOKEN }}"
+          export REPOSITORY="${{ env.REPOSITORY }}"
+          export TAG="${{ env.TAG }}"
+          export BINARY=${{steps.download.outputs.download-path}}
+
+          script="${{ env.dir }}/build-package"
+          source<(${script})
+          upload_release
