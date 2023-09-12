@@ -35,8 +35,8 @@ jobs:
           dir: ${{ github.workspace }}
         run: |
           chmod +x ${{ env.dir }}/build-package
-          . ${{ env.dir }}/build-package
-
+          . ${{ env.dir }}/build-package ${{ env.dir }}
+          
       - name: uploadArtifact
         uses: actions/upload-artifact@v3
         with:
