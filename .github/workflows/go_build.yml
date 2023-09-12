@@ -44,7 +44,7 @@ jobs:
         run: |
           script="${{ env.dir }}/build-package"
           chmod +x "${script}"
-          source<(${script})
+          source ${script}
           build_binary ${{ env.dir }}
           
       - name: uploadArtifact
@@ -81,5 +81,5 @@ jobs:
           export BINARY=${{steps.download.outputs.download-path}}
 
           script="${{ env.dir }}/build-package"
-          source<(${script})
+          source ${script}
           upload_release
