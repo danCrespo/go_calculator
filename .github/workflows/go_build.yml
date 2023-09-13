@@ -52,7 +52,7 @@ jobs:
         if: success()
         with:
           name: go-calculator
-          path: /opt/artifacts/go-calculator.gzip
+          path: /opt/artifacts/go-calculator.gz
           if-no-files-found: error
 
   release:
@@ -79,7 +79,7 @@ jobs:
           export GH_TOKEN="${{ env.GH_TOKEN }}"
           export REPOSITORY="${{ env.REPOSITORY }}"
           export TAG="${{ env.TAG }}"
-          export BINARY=go-calculator.gzip
+          export BINARY=go-calculator.gz
 
           script="${{ env.dir }}/build-package"
           source ${script}
