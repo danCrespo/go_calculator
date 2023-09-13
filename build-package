@@ -24,7 +24,7 @@ build_binary() {
       ;;
   esac
 
-  go build -o "${output_path}" -buildmode=exe "${dir}" && tar -czvf "${output_path}/.tar.gz" "${output_path}"
+  go build -o "${output_path}" -buildmode=exe "${dir}" && tar -czvf "${output_path}.tar.gz" "${output_path}"
   ls -lA /opt/artifacts
 }
 
