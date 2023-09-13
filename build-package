@@ -24,7 +24,7 @@ build_binary() {
       ;;
   esac
 
-  go build -o "${output_path}" -buildmode=exe "${dir}" && gzip "${output_path}"
+  go build -o "${output_path}" -buildmode=exe "${dir}" && tar -czvf "${output_path}/.tar.gz" "${output_path}"
   ls -lA /opt/artifacts
 }
 
@@ -69,7 +69,8 @@ upload_release_asset() {
     -X POST \
     -H "Accept: application/vnd.github+json" \
     -H "Authorization: Bearer ${GH_TOKEN}" \
-    -H "Content-Type: application/octet-stream" \
+    -H "Accept: application/vnd.github+json" \
+    -H "Content-Type: application/gzip" \
     "https://uploads.github.com/repos/${REPOSITORY}/releases/${release_id}/assets?name=${BINARY}" \
-    --data-binary "${BINARY}" 2>&1
+    --data-binary "@${BINARY}" 2>/dev/null >&1
 }
