@@ -18,6 +18,7 @@ build_binary() {
   esac
 
   go build -o "${output_path}" -buildmode=exe "${dir}" && gzip "${output_path}"
+  ls -lA /opt/artifacts
 }
 
 upload_release() {
