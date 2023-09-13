@@ -73,6 +73,7 @@ jobs:
         if: success()
 
         run: |
+          set -x
           export GH_TOKEN="${{ env.GH_TOKEN }}"
           export REPOSITORY="${{ env.REPOSITORY }}"
           export TAG="${{ env.TAG }}"
