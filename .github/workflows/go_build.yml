@@ -82,9 +82,9 @@ jobs:
           script="${{ env.dir }}/build-package"
           source ${script}
 
-          get_release_by_tag
+          get_last_release
 
-          if [[ "${release_id}" != "${TAG}" ]]; then
+          if [[ "${tag_name}" != "${TAG}" ]]; then
             create_relase
           else
             upload_release_asset
