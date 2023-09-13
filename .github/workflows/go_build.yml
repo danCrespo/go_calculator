@@ -72,7 +72,7 @@ jobs:
           dir: ${{ github.workspace }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
-          TAG: ${{ github.ref_type == 'tag' && github.event.ref || github.event.commits.id }}
+          TAG: ${{ github.ref_name }}
         if: success()
 
         run: |
