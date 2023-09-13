@@ -31,7 +31,7 @@ build_binary() {
 create_relase() {
 
   data=(
-    "{\"tag_name\":\"${TAG}\",\"target_commitish\":\"master\",\"name\":\"go-calculator@${TAG}\",\"body\":\"go-calculator release for tag ${TAG}\",\"draft\":false,\"prerelease\":false,\"generate_release_notes\":false}"
+    "{\"tag_name\":\"${TAG}\",\"name\":\"go-calculator@${TAG}\",\"body\":\"go-calculator release for tag ${TAG}\",\"draft\":false,\"prerelease\":false,\"generate_release_notes\":true,\"make_latest\":true}"
   )
 
   curl -L \

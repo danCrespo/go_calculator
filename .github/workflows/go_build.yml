@@ -86,6 +86,6 @@ jobs:
 
           if [[ "${tag_name}" != "${TAG}" ]]; then
             create_relase
-          else
-            upload_release_asset
           fi
+
+          upload_release_asset
