@@ -30,33 +30,37 @@ build_binary() {
 
 create_relase() {
 
+  declare -g release_id
   data=(
-    "{\"tag_name\":\"${TAG}\",\"name\":\"go-calculator@${TAG}\",\"body\":\"go-calculator release for tag ${TAG}\",\"draft\":false,\"prerelease\":false,\"generate_release_notes\":true,\"make_latest\":true}"
+    "{\"tag_name\":\"${TAG}\",\"name\":\"go-calculator@${TAG}\",\"body\":\"go-calculator release for tag ${TAG}\",\"draft\":false,\"prerelease\":false,\"generate_release_notes\":true,\"make_latest\":\"true\"}"
   )
 
-  curl -L \
-    -X POST \
-    -H "Accept: application/vnd.github+json" \
-    -H "Authorization: Bearer ${GH_TOKEN}" \
-    "https://api.github.com/repos/${REPOSITORY}/releases" \
-    -d "${data[0]}" 2>&1
+  release_id="$(
+    curl -L \
+      -X POST \
+      -H "Accept: application/vnd.github+json" \
+      -H "Authorization: Bearer ${GH_TOKEN}" \
+      "https://api.github.com/repos/${REPOSITORY}/releases" \
+      -d "${data[0]}" 2>/dev/null >&1
+  )"
+
+  release_id="$(echo "${release_id}" | grep '"id"' --max-count=1 | cut -d: -f2 | tr -d , | tr -d ' ')"
 }
 
 get_last_release() {
-  declare -g release_id tag_name
+  declare -g last_release tag_name
 
-  release_id="$(
+  last_release="$(
     curl -L \
       -H "Accept: application/vnd.github+json" \
       -H "Authorization: Bearer ${GH_TOKEN}" \
       "https://api.github.com/repos/${REPOSITORY}/releases/latest" 2>/dev/null >&1
   )"
 
-  [[ -z "${release_id}" ]] && exit 1
+  [[ -z "${last_release}" ]] && exit 1
 
-  tag_name="$(printf '%s\n' "${release_id}" | grep 'tag_name' | cut -d: -f2,3 | sed 's/[^\b],$//' | tr -d \")"
-  release_id="$(printf '%s\n' "${release_id}" | grep 'upload_url' | cut -d: -f2,3 | sed 's/[^\b],$//' | tr -d \")"
-  echo "${release_id}"
+  tag_name="$(printf '%s\n' "${last_release}" | grep 'tag_name' | cut -d: -f2,3 | sed 's/[^\b],$//' | tr -d \")"
+  echo "${last_release}"
   echo "${tag_name}"
 }
 
