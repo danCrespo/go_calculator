@@ -19,7 +19,7 @@ build_binary() {
   platforms=(
     linux/arm
     linux/amd64
-    darwin/arm
+    darwin/arm64
     darwin/amd64
     windows/arm
     windows/amd64
