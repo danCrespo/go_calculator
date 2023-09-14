@@ -1,71 +1,120 @@
 #!/usr/bin/env bash
 
-declare filePath
-filePath="$(pwd)/.env"
-
-if [[ -f "${filePath}" ]]; then
+declare dotenv
+# For locally test use
+dotenv="$(pwd)/.env"
+if [[ -f "${dotenv}" ]]; then
   # shellcheck source=./.env
-  source "${filePath}"
-  echo "File \"${filePath}\" exists"
+  source "${dotenv}"
+  echo "document \"${dotenv}\" exists"
 fi
 
+programName=go-calculator
+
 build_binary() {
-  local dir os_type output_path
+  set -x
+  local dir output_path platforms splitted
+
   dir=$1
-  os_type="$(uname -o)"
-
-  case "${os_type}" in
-    Darwin | GNU/Linux)
-      output_path=/opt/artifacts/go-calculator
-      ;;
-    *)
-      echo -e "Unsupported OS. supported OS includes just: Linux and Darwin"
-      return 1
-      ;;
-  esac
-
-  go build -o "${output_path}" -buildmode=exe "${dir}" && gzip "${output_path}"
-  ls -lA /opt/artifacts
-}
-
-create_relase() {
-
-  data=(
-    "{\"tag_name\":\"${TAG}\",\"target_commitish\":\"master\",\"name\":\"go-calculator@${TAG}\",\"body\":\"go-calculator release for tag ${TAG}\",\"draft\":false,\"prerelease\":false,\"generate_release_notes\":false}"
+  platforms=(
+    linux/arm
+    linux/amd64
+    darwin/arm64
+    darwin/amd64
+    windows/arm
+    windows/amd64
   )
+  output_path=/opt/artifacts
 
-  curl -L \
-    -X POST \
-    -H "Accept: application/vnd.github+json" \
-    -H "Authorization: Bearer ${GH_TOKEN}" \
-    "https://api.github.com/repos/${REPOSITORY}/releases" \
-    -d "${data[0]}" 2>&1
+  for platform in "${platforms[@]}"; do
+    splitted="$(echo -e "${platform//\//'\n'}")"
+    mapfile -t platform_split <<<"${splitted}"
+    export GOOS="${platform_split[0]}"
+    export GOARCH="${platform_split[1]}"
+    compressed_filename="${programName}-${GOOS}-${GOARCH}.tar.gz"
+
+    if ! go build -o "${output_path}/${programName}" "${dir}"; then
+      echo -e "An error has occurred!. Aborting programm"
+      exit 1
+    else
+
+      cd "${output_path}" || exit 0
+      tar -czvf "${compressed_filename}" "${programName}"
+      rm -f "${programName}"
+      cd "${OLDPWD}" || true
+    fi
+
+    unset GOOS GOARCH
+  done
+
+  unset dir output_path platforms splitted
 }
 
-get_release_by_tag() {
-
-  set -e
-  declare -g release_id
-
-  release_id="$(
+get_last_release() {
+  declare -g last_release tag_name
+  last_release="$(
     curl -L \
       -H "Accept: application/vnd.github+json" \
       -H "Authorization: Bearer ${GH_TOKEN}" \
-      "https://api.github.com/repos/${REPOSITORY}/releases/tags/${TAG}" 2>/dev/null >&1
+      "https://api.github.com/repos/${REPOSITORY}/releases/latest" 2>/dev/null >&1
+  )"
+  message="$(echo "${last_release}" | grep 'message')" || true
+
+  if [[ -n "${message}" ]] && [[ "$(echo "${message//\"/}" | cut -d: -f2 | tr -d , | tr -d ' ')" == 'NotFound' ]]; then
+    tag_name=NotFound
+  else
+    tag_name="$(printf '%s\n' "${last_release}" | grep 'tag_name' | cut -d: -f2,3 | sed 's/[^\b],$//' | tr -d \")"
+  fi
+  echo "${tag_name}" >/dev/null
+}
+
+create_relase() {
+  local release_request
+  declare -g release_id
+  data=(
+    "{\"tag_name\":\"${TAG}\",\"name\":\"${programName}@${TAG}\",\"body\":\"${programName} release for tag ${TAG}\",\"draft\":false,\"prerelease\":false,\"generate_release_notes\":true,\"make_latest\":\"true\"}"
+  )
+  release_request="$(
+    curl -L \
+      -X POST \
+      -H "Accept: application/vnd.github+json" \
+      -H "Authorization: Bearer ${GH_TOKEN}" \
+      "https://api.github.com/repos/${REPOSITORY}/releases" \
+      -d "${data[0]}" 2>/dev/null >&1
   )"
 
-  [[ -z "${release_id}" ]] && exit 1
-
-  release_id="$(printf '%s\n' "${release_id}" | grep 'upload_url' | cut -d: -f2,3 | sed 's/[^\b],$//' | tr -d \")"
-  # echo "${release_id}"
+  release_id="$(echo "${release_request}" | grep '"id"' --max-count=1 | cut -d: -f2 | tr -d , | tr -d ' ')"
+  unset release_request
 }
 
 upload_release_asset() {
+  local mime=$1
+
   curl -L \
     -X POST \
     -H "Accept: application/vnd.github+json" \
     -H "Authorization: Bearer ${GH_TOKEN}" \
-    -H "Content-Type: application/octet-stream" \
+    -H "Accept: application/vnd.github+json" \
+    -H "Content-Type: ${mime:='application/gzip'}" \
     "https://uploads.github.com/repos/${REPOSITORY}/releases/${release_id}/assets?name=${BINARY}" \
-    --data-binary "${BINARY}" 2>&1
+    --data-binary "@${BINARY}" 2>/dev/null >&1
+
+  unset mime
+}
+
+recurse_dir() {
+  local mime_type
+  for document in *; do
+
+    if [[ -f "${document}" ]]; then
+      mime_type="$(file --brief --mime-type "${document}")"
+
+      if [[ "${mime_type}" == 'application/gzip' ]]; then
+        export BINARY="${document}"
+        upload_release_asset "${mime_type}"
+      fi
+
+    fi
+  done
+  unset mime_type
 }
