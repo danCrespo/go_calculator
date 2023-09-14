@@ -91,7 +91,5 @@ jobs:
             create_relase
           fi
 
-          apt-get install -y zip
-
           cd ${{ steps.download.outputs.download-path }} 
           recurse_dir
