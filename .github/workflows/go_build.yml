@@ -92,8 +92,4 @@ jobs:
           fi
 
           cd ${{ steps.download.outputs.download-path }} 
-          for file in *; do
-            echo "${file}"
-            BINARY="${file}"
-            upload_release_asset
-          done
+          recurse_dir

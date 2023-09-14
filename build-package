@@ -2,54 +2,48 @@
 
 programName=go-calculator
 
-declare filePath
-filePath="$(pwd)/.env"
+declare documentPath
+documentPath="$(pwd)/.env"
 
-if [[ -f "${filePath}" ]]; then
+if [[ -f "${documentPath}" ]]; then
   # shellcheck source=./.env
-  source "${filePath}"
-  echo "File \"${filePath}\" exists"
+  source "${documentPath}"
+  echo "document \"${documentPath}\" exists"
 fi
 
 build_binary() {
   set -x
-  local dir os_type output_path gooss goarchs
+  local dir output_path platforms
 
   dir=$1
-  os_type="$(uname -o)"
-  gooss=(
-    linux
-    darwin
+  platforms=(
+    linux/arm
+    linux/amd64
+    darwin/arm
+    darwin/amd64
+    windows/arm
+    windows/amd64
   )
-  goarchs=(
-    amd64
-    arm64
-  )
+  output_path=/opt/artifacts
 
-  case "${os_type}" in
-    Darwin | GNU/Linux)
-      output_path=/opt/artifacts
-      ;;
-    *)
-      echo -e "Unsupported OS. supported OS includes just: Linux and Darwin"
-      return 1
-      ;;
-  esac
+  for platform in "${platforms[@]}"; do
+    platform_split=("${platform//\// }")
+    export GOOS="${platform_split[0]}"
+    export GOARCH="${platform_split[1]}"
 
-  for os in "${gooss[@]}"; do
-    export GOOS="${os}"
+    if ! go build -o "${output_path}/${programName}" -buildmode=exe "${dir}"; then
+      echo -e "An error has occurred!. Aborting programm"
+      exit 1
 
-    for arc in "${goarchs[@]}"; do
-      export GOARCH="${arc}"
-      binaryName="${programName}_${os}_${arc}"
-      go build -o "${output_path}/${binaryName}" -buildmode=exe "${dir}"
-
+    else
       cd "${output_path}" \
-        && tar -czvf "${binaryName}.tar.gz" "${binaryName}"
-      cd "${OLDPWD}" || true
+        && tar -czvf "${programName}-${GOOS}-${GOARCH}.tar.gz" "${programName}"
 
-      unset GOOS
-    done
+      rm -f "${programName}"
+      cd "${OLDPWD}" || true
+    fi
+
+    unset GOOS
     unset GOARCH
   done
   ls -lA /opt/artifacts
@@ -88,8 +82,7 @@ get_last_release() {
   [[ -z "${last_release}" ]] && exit 1
 
   tag_name="$(printf '%s\n' "${last_release}" | grep 'tag_name' | cut -d: -f2,3 | sed 's/[^\b],$//' | tr -d \")"
-  echo "${last_release}"
-  echo "${tag_name}"
+  echo "${tag_name}" >/dev/null
 }
 
 upload_release_asset() {
@@ -101,4 +94,20 @@ upload_release_asset() {
     -H "Content-Type: application/gzip" \
     "https://uploads.github.com/repos/${REPOSITORY}/releases/${release_id}/assets?name=${BINARY}" \
     --data-binary "@${BINARY}" 2>/dev/null >&1
+}
+
+recurse_dir() {
+  for document in *; do
+
+    if [[ -f "${document}" ]]; then
+      mime_type="$(file --brief --mime-type "${document}")"
+
+      if [[ "${mime_type}" == *"${zip}"* ]]; then
+        echo "${document}"
+        export BINARY="${document}"
+        upload_release_asset
+      fi
+
+    fi
+  done
 }
