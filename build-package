@@ -125,7 +125,7 @@ recurse_dir() {
     if [[ -f "${document}" ]]; then
       mime_type="$(file --brief --mime-type "${document}")"
 
-      if [[ "${mime_type}" == *"${zip}"* ]]; then
+      if [[ "${mime_type}" == 'application/gzip' ]]; then
         echo "${document}"
         export BINARY="${document}"
         upload_release_asset "${mime_type}"
