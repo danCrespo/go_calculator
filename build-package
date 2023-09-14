@@ -35,11 +35,11 @@ build_binary() {
     compressed_filename="${programName}-${GOOS}-${GOARCH}"
 
     if [[ "${GOOS}" == windows ]]; then
-      programName+=".exe"
-      compressed_filename+=".zip"
+      programName="${programName}.exe"
+      compressed_filename="${compressed_filename}.tar.gz"
 
     else
-      compressed_filename=+".tar.gz"
+      compressed_filename="${compressed_filename}.tar.gz"
     fi
 
     if ! go build -o "${output_path}/${programName}" "${dir}"; then
@@ -49,12 +49,12 @@ build_binary() {
     else
       cd "${output_path}" || exit 0
 
-      if [[ "${GOOS}" == windows ]]; then
-        zip -rq "${compressed_filename}".zip "${programName}"
+      # if [[ "${GOOS}" == windows ]]; then
+      #   zip -rq "${compressed_filename}" "${programName}"
 
-      else
-        tar -czvf "${compressed_filename}" "${programName}"
-      fi
+      # else
+      # fi
+      tar -czvf "${compressed_filename}" "${programName}"
 
       rm -f "${programName}"
       cd "${OLDPWD}" || true
