@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 
-programName=go-calculator
-
-declare documentPath
-documentPath="$(pwd)/.env"
-
-if [[ -f "${documentPath}" ]]; then
+declare dotenv
+# For locally test use
+dotenv="$(pwd)/.env"
+if [[ -f "${dotenv}" ]]; then
   # shellcheck source=./.env
-  source "${documentPath}"
-  echo "document \"${documentPath}\" exists"
+  source "${dotenv}"
+  echo "document \"${dotenv}\" exists"
 fi
+
+programName=go-calculator
 
 build_binary() {
   set -x
-  local dir output_path platforms
+  local dir output_path platforms splitted
 
   dir=$1
   platforms=(
@@ -29,73 +29,35 @@ build_binary() {
   for platform in "${platforms[@]}"; do
     splitted="$(echo -e "${platform//\//'\n'}")"
     mapfile -t platform_split <<<"${splitted}"
-
     export GOOS="${platform_split[0]}"
     export GOARCH="${platform_split[1]}"
-    compressed_filename="${programName}-${GOOS}-${GOARCH}"
-
-    if [[ "${GOOS}" == windows ]]; then
-      programName="${programName}.exe"
-      compressed_filename="${compressed_filename}.tar.gz"
-
-    else
-      compressed_filename="${compressed_filename}.tar.gz"
-    fi
+    compressed_filename="${programName}-${GOOS}-${GOARCH}.tar.gz"
 
     if ! go build -o "${output_path}/${programName}" "${dir}"; then
       echo -e "An error has occurred!. Aborting programm"
       exit 1
-
     else
+
       cd "${output_path}" || exit 0
-
-      # if [[ "${GOOS}" == windows ]]; then
-      #   zip -rq "${compressed_filename}" "${programName}"
-
-      # else
-      # fi
       tar -czvf "${compressed_filename}" "${programName}"
-
       rm -f "${programName}"
       cd "${OLDPWD}" || true
     fi
 
-    unset GOOS
-    unset GOARCH
+    unset GOOS GOARCH
   done
-  ls -lA /opt/artifacts
-}
 
-create_relase() {
-
-  local release_request
-  declare -g release_id
-  data=(
-    "{\"tag_name\":\"${TAG}\",\"name\":\"${programName}@${TAG}\",\"body\":\"${programName} release for tag ${TAG}\",\"draft\":false,\"prerelease\":false,\"generate_release_notes\":true,\"make_latest\":\"true\"}"
-  )
-
-  release_request="$(
-    curl -L \
-      -X POST \
-      -H "Accept: application/vnd.github+json" \
-      -H "Authorization: Bearer ${GH_TOKEN}" \
-      "https://api.github.com/repos/${REPOSITORY}/releases" \
-      -d "${data[0]}" 2>/dev/null >&1
-  )"
-
-  release_id="$(echo "${release_request}" | grep '"id"' --max-count=1 | cut -d: -f2 | tr -d , | tr -d ' ')"
+  unset dir output_path platforms splitted
 }
 
 get_last_release() {
   declare -g last_release tag_name
-
   last_release="$(
     curl -L \
       -H "Accept: application/vnd.github+json" \
       -H "Authorization: Bearer ${GH_TOKEN}" \
       "https://api.github.com/repos/${REPOSITORY}/releases/latest" 2>/dev/null >&1
   )"
-
   message="$(echo "${last_release}" | grep 'message')" || true
 
   if [[ -n "${message}" ]] && [[ "$(echo "${message//\"/}" | cut -d: -f2 | tr -d , | tr -d ' ')" == 'NotFound' ]]; then
@@ -106,8 +68,27 @@ get_last_release() {
   echo "${tag_name}" >/dev/null
 }
 
+create_relase() {
+  local release_request
+  declare -g release_id
+  data=(
+    "{\"tag_name\":\"${TAG}\",\"name\":\"${programName}@${TAG}\",\"body\":\"${programName} release for tag ${TAG}\",\"draft\":false,\"prerelease\":false,\"generate_release_notes\":true,\"make_latest\":\"true\"}"
+  )
+  release_request="$(
+    curl -L \
+      -X POST \
+      -H "Accept: application/vnd.github+json" \
+      -H "Authorization: Bearer ${GH_TOKEN}" \
+      "https://api.github.com/repos/${REPOSITORY}/releases" \
+      -d "${data[0]}" 2>/dev/null >&1
+  )"
+
+  release_id="$(echo "${release_request}" | grep '"id"' --max-count=1 | cut -d: -f2 | tr -d , | tr -d ' ')"
+  unset release_request
+}
+
 upload_release_asset() {
-  mime=$1
+  local mime=$1
 
   curl -L \
     -X POST \
@@ -117,20 +98,23 @@ upload_release_asset() {
     -H "Content-Type: ${mime:='application/gzip'}" \
     "https://uploads.github.com/repos/${REPOSITORY}/releases/${release_id}/assets?name=${BINARY}" \
     --data-binary "@${BINARY}" 2>/dev/null >&1
+
+  unset mime
 }
 
 recurse_dir() {
+  local mime_type
   for document in *; do
 
     if [[ -f "${document}" ]]; then
       mime_type="$(file --brief --mime-type "${document}")"
 
       if [[ "${mime_type}" == 'application/gzip' ]]; then
-        echo "${document}"
         export BINARY="${document}"
         upload_release_asset "${mime_type}"
       fi
 
     fi
   done
+  unset mime_type
 }
