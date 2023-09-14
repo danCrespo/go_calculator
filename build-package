@@ -12,6 +12,7 @@ if [[ -f "${filePath}" ]]; then
 fi
 
 build_binary() {
+  set -x
   local dir os_type output_path gooss goarchs
 
   dir=$1
