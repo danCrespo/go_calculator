@@ -32,14 +32,29 @@ build_binary() {
 
     export GOOS="${platform_split[0]}"
     export GOARCH="${platform_split[1]}"
+    compressed_filename="${programName}-${GOOS}-${GOARCH}"
 
-    if ! go build -o "${output_path}/${programName}" -buildmode=exe "${dir}"; then
+    if [[ "${GOOS}" == windows ]]; then
+      programName+=".exe"
+      compressed_filename+=".zip"
+
+    else
+      compressed_filename=+".tar.gz"
+    fi
+
+    if ! go build -o "${output_path}/${programName}" "${dir}"; then
       echo -e "An error has occurred!. Aborting programm"
       exit 1
 
     else
-      cd "${output_path}" \
-        && tar -czvf "${programName}-${GOOS}-${GOARCH}.tar.gz" "${programName}"
+      cd "${output_path}" || exit 0
+
+      if [[ "${GOOS}" == windows ]]; then
+        zip -rq "${compressed_filename}".zip "${programName}"
+
+      else
+        tar -czvf "${compressed_filename}" "${programName}"
+      fi
 
       rm -f "${programName}"
       cd "${OLDPWD}" || true
@@ -86,12 +101,14 @@ get_last_release() {
 }
 
 upload_release_asset() {
+  mime=$1
+
   curl -L \
     -X POST \
     -H "Accept: application/vnd.github+json" \
     -H "Authorization: Bearer ${GH_TOKEN}" \
     -H "Accept: application/vnd.github+json" \
-    -H "Content-Type: application/gzip" \
+    -H "Content-Type: ${mime:='application/gzip'}" \
     "https://uploads.github.com/repos/${REPOSITORY}/releases/${release_id}/assets?name=${BINARY}" \
     --data-binary "@${BINARY}" 2>/dev/null >&1
 }
@@ -105,7 +122,7 @@ recurse_dir() {
       if [[ "${mime_type}" == *"${zip}"* ]]; then
         echo "${document}"
         export BINARY="${document}"
-        upload_release_asset
+        upload_release_asset "${mime_type}"
       fi
 
     fi
