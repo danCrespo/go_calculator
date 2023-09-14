@@ -96,7 +96,7 @@ get_last_release() {
       "https://api.github.com/repos/${REPOSITORY}/releases/latest" 2>/dev/null >&1
   )"
 
-  message="$(echo "${last_release}" | grep 'message')" || ' '
+  message="$(echo "${last_release}" | grep 'message')" || " "
 
   if [[ -n "${message}" ]] && [[ "$(echo "${message//\"/}" | cut -d: -f2 | tr -d , | tr -d ' ')" == 'NotFound' ]]; then
     tag_name=NotFound
