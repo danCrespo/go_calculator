@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+programName=go-calculator
+
 declare filePath
 filePath="$(pwd)/.env"
 
@@ -10,13 +12,22 @@ if [[ -f "${filePath}" ]]; then
 fi
 
 build_binary() {
-  local dir os_type output_path
+  local dir os_type output_path gooss goarchs
+
   dir=$1
   os_type="$(uname -o)"
+  gooss=(
+    linux
+    darwin
+  )
+  goarchs=(
+    amd64
+    arm64
+  )
 
   case "${os_type}" in
     Darwin | GNU/Linux)
-      output_path=/opt/artifacts/go-calculator
+      output_path=/opt/artifacts
       ;;
     *)
       echo -e "Unsupported OS. supported OS includes just: Linux and Darwin"
@@ -24,7 +35,18 @@ build_binary() {
       ;;
   esac
 
-  go build -o "${output_path}" -buildmode=exe "${dir}" && tar -czvf "${output_path}.tar.gz" "${output_path}"
+  for os in "${gooss[@]}"; do
+    export GOOS="${os}"
+
+    for arc in "${goarchs[@]}"; do
+      export GOARCH="${arc}"
+      binaryName="${programName}_${os}_${arc}"
+      go build -o "${output_path}/${programName}" -buildmode=exe "${dir}" && tar -C "${output_path}" -czvf "${binaryName}.tar.gz" "${binaryName}"
+
+      unset GOOS
+    done
+    unset GOARCH
+  done
   ls -lA /opt/artifacts
 }
 
@@ -32,7 +54,7 @@ create_relase() {
 
   declare -g release_id
   data=(
-    "{\"tag_name\":\"${TAG}\",\"name\":\"go-calculator@${TAG}\",\"body\":\"go-calculator release for tag ${TAG}\",\"draft\":false,\"prerelease\":false,\"generate_release_notes\":true,\"make_latest\":\"true\"}"
+    "{\"tag_name\":\"${TAG}\",\"name\":\"${programName}@${TAG}\",\"body\":\"${programName} release for tag ${TAG}\",\"draft\":false,\"prerelease\":false,\"generate_release_notes\":true,\"make_latest\":\"true\"}"
   )
 
   release_id="$(
