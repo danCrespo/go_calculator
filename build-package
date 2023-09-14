@@ -79,8 +79,6 @@ get_last_release() {
       "https://api.github.com/repos/${REPOSITORY}/releases/latest" 2>/dev/null >&1
   )"
 
-  [[ -z "${last_release}" ]] && exit 1
-
   tag_name="$(printf '%s\n' "${last_release}" | grep 'tag_name' | cut -d: -f2,3 | sed 's/[^\b],$//' | tr -d \")"
   echo "${tag_name}" >/dev/null
 }
