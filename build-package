@@ -27,7 +27,9 @@ build_binary() {
   output_path=/opt/artifacts
 
   for platform in "${platforms[@]}"; do
-    platform_split=("${platform//\// }")
+    splitted="$(echo -e "${platform//\//'\n'}")"
+    mapfile -t platform_split <<<"${splitted}"
+
     export GOOS="${platform_split[0]}"
     export GOARCH="${platform_split[1]}"
 
