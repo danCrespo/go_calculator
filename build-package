@@ -41,7 +41,7 @@ build_binary() {
     for arc in "${goarchs[@]}"; do
       export GOARCH="${arc}"
       binaryName="${programName}_${os}_${arc}"
-      go build -o "${output_path}/${programName}" -buildmode=exe "${dir}" && tar -C "${output_path}" -czvf "${binaryName}.tar.gz" "${binaryName}"
+      go build -o "${output_path}/${programName}" -buildmode=exe "${dir}" && tar -czvf "${binaryName}.tar.gz" -C "${output_path}" "${binaryName}"
 
       unset GOOS
     done
