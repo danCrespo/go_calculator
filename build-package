@@ -42,7 +42,7 @@ build_binary() {
     for arc in "${goarchs[@]}"; do
       export GOARCH="${arc}"
       binaryName="${programName}_${os}_${arc}"
-      go build -o "${output_path}/${programName}" -buildmode=exe "${dir}"
+      go build -o "${output_path}/${binaryName}" -buildmode=exe "${dir}"
 
       cd "${output_path}" \
         && tar -czvf "${binaryName}.tar.gz" "${binaryName}"
