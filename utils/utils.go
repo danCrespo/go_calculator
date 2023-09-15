@@ -36,6 +36,36 @@ func StringContains(value string, patterns ...string) bool {
 	return false
 }
 
+func CreateSlice(e []string) (elements []string) {
+
+	str := strings.Join(e, "")
+	negativeNumberRegex := regexp.MustCompile(`[\*/\+\-%\^]-[\d]+\.[\d]*`)
+	digitRegex := regexp.MustCompile(`[\d]+\.?[\d]*`)
+	totalDigits := digitRegex.FindAllString(str, -1)
+	negativeNumber := negativeNumberRegex.FindString(str)
+	negativeNumberInd := strings.Index(str, negativeNumber)
+	charArray := ""
+
+	if negativeNumber != "" {
+		str = negativeNumberRegex.ReplaceAllString(str, "")
+
+	}
+
+	for char := 0; char < len(str); char++ {
+		if negativeNumber != "" && char == negativeNumberInd-1 {
+			charArray += string(str[char]) + " " + string(negativeNumber[0]) + " " + negativeNumber[1:]
+		}
+		if StringContains(string(str[char]), "^", "*", "/", "+", "-") && len(totalDigits) > 1 {
+			charArray += " " + string(str[char]) + " "
+		} else {
+			charArray += string(str[char])
+		}
+	}
+
+	elements = strings.Fields(charArray)
+	return
+}
+
 func StringContainsAndWhatContains(value string, patterns ...string) (bool, []string) {
 	result := false
 	patternsMatched := make([]string, 0)

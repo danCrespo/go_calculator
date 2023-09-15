@@ -1,3 +1,4 @@
 *.vscode/
 .trunk/tools/
 .env
+.local/

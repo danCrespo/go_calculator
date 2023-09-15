@@ -76,52 +76,41 @@ func moduleOperation(operationElements []string) float64 {
 }
 
 func processParenthesisGroups(operationElements []string, operator string) (args []string) {
-	elementsGroup := make([]string, 0)
+	elementStr := strings.Join(operationElements, "")
+	openParenthesisIndexes := make([]int, 0)
 
-	for elementIndex, element := range operationElements {
-
-		if utils.StringContains(element, operator) {
-			parenthesisStr := strings.Join(operationElements, " ")
-			parenthesisCount := strings.Count(parenthesisStr, operator)
-			firstParenthesisIndex := strings.Index(parenthesisStr, operator)
-
-			if parenthesisCount > 1 && parenthesisStr[firstParenthesisIndex+1] == '(' {
-				lastParenthesisIndex := strings.LastIndex(parenthesisStr, operator)
-
-				for charIndex := lastParenthesisIndex; charIndex < len(parenthesisStr); charIndex++ {
-					for nextCharIndex := charIndex + 1; nextCharIndex < len(parenthesisStr); nextCharIndex++ {
-
-						if parenthesisStr[nextCharIndex] == ')' {
-							removeParenthesis := strings.ReplaceAll(parenthesisStr[lastParenthesisIndex:nextCharIndex], operator, "")
-							removeParenthesis = strings.ReplaceAll(removeParenthesis, ")", "")
-							oldStr := "(" + removeParenthesis + ")"
-							parenthesisStr = strings.ReplaceAll(parenthesisStr, oldStr, fmt.Sprintf("%g", resolve(strings.Fields(removeParenthesis))))
-							operationElements = strings.Fields(parenthesisStr)
-							break
-						}
-					}
-				}
-
-			} else {
-				for elementInd := 0; elementInd < len(operationElements); elementInd++ {
-					if strings.Contains(operationElements[elementInd], ")") {
-						removeParenthesis := strings.ReplaceAll(strings.Join(operationElements[elementIndex:elementInd+1], " "), operator, "")
-						removeParenthesis = strings.ReplaceAll(removeParenthesis, ")", "")
-						operationElements = utils.ReplaceSlice(operationElements, elementIndex, elementInd+1, fmt.Sprintf("%g", resolve(strings.Fields(removeParenthesis))))
-						break
-					}
-				}
-			}
+	for char := 0; char < len(elementStr); char++ {
+		if elementStr[char] == '(' {
+			openParenthesisIndexes = append(openParenthesisIndexes, char)
 		}
-
-		elementsGroup = slices.Delete[[]string](elementsGroup, 0, len(elementsGroup))
 	}
 
-	args = operationElements
+	for parenthesis := len(openParenthesisIndexes) - 1; parenthesis >= 0; parenthesis-- {
+		openParenthesis := openParenthesisIndexes[parenthesis]
+		elementsSlice := elementStr[openParenthesis:]
+
+		for char := 0; char < len(elementsSlice); char++ {
+			if elementsSlice[char] == ')' {
+
+				portion := elementsSlice[1:char]
+				parenthesisResult := resolve(strings.Fields(portion))
+				elementStr = strings.ReplaceAll(elementStr, elementStr[openParenthesis:openParenthesis+char+1], fmt.Sprintf("%g", parenthesisResult))
+				break
+			}
+		}
+	}
+
+	args = strings.Fields(elementStr)
 	return
 }
 
 func processOperationElements(operationElements []string, operator string) (args []string) {
+	elementsStr := strings.Join(operationElements, "")
+
+	if len(operationElements) == 1 && utils.SignsRegex.MatchString(elementsStr) {
+		operationElements = utils.CreateSlice(operationElements)
+	}
+
 	elementsGroup := make([]string, 0)
 
 	for range operationElements {
@@ -155,6 +144,11 @@ func resolve(operationElements []string) float64 {
 }
 
 func mathOperation(elements []string, operand string) (operationElements []string) {
+	elementsStr := strings.Join(elements, "")
+
+	if len(elements) == 1 && utils.SignsRegex.MatchString(elementsStr) {
+		elements = utils.CreateSlice(elements)
+	}
 
 	for range elements {
 		if slices.Contains(elements, operand) {
