@@ -7,6 +7,7 @@ import (
 
 	"github.com/danCrespo/go_calculator/arithmetic"
 	"github.com/danCrespo/go_calculator/utils"
+	"golang.org/x/exp/slices"
 )
 
 const (
@@ -52,55 +53,68 @@ func (t *trigonometry) Calculate(elements []string) float64 {
 	return t.arithmetic.ResolveOperation(elements)
 }
 
-func (t *trigonometry) resolveTrigonometryFunctions(elements []string) []string {
-	if len(elements) == 1 {
-		elements = strings.Split(elements[0], "")
-	}
-	arg := strings.Join(elements, "")
+var functionNames = []string{Sin, Cos, Sinh, Cosh, Tan, Cot, Sec, Cosec, Hypot, RootN, PotencyN}
 
-	match, matches := utils.StringContainsAndWhatContains(arg, Sin, Cos, Sinh, Cosh, Tan, Cot, Sec, Cosec, Hypot, RootN, PotencyN)
+func sustractFunctionsNames(input string) ([]string, bool) {
+	match, matches := false, make([]string, 0)
+	for _, name := range functionNames {
+		if strings.Contains(input, name) {
+			match = true
+			matches = append(matches, name)
+		}
+	}
+	return matches, match
+}
+
+func processSubmatchFunctions(t *trigonometry, input string) string {
+	matches, match := sustractFunctionsNames(input)
+	var result string
+
 	if match {
-		for matchInd := 0; matchInd < len(matches); matchInd++ {
+		slices.Reverse[[]string](matches)
+		for matchIndex := 0; matchIndex < len(matches); matchIndex++ {
 			var (
 				trigonometryFn string
 				firstValue     string
-				secondValue    string
-				value          = arg
 			)
-			trigonometryFn = matches[matchInd]
-			fmt.Println("Matches", matches)
+			trigonometryFn = matches[matchIndex]
+			enclosedValue := input[strings.Index(input, trigonometryFn):]
+			parenthesisOpenIndex, parenthesisCloseIndex := strings.Index(enclosedValue, "("), strings.LastIndex(enclosedValue, ")")
 
-			for charInd := 0; charInd < len(value); charInd++ {
-				if value[charInd] == '(' {
-
-					for nextCharInd := charInd + 1; nextCharInd < len(value); nextCharInd++ {
-						if value[nextCharInd] == ')' {
-							value = value[charInd+1 : nextCharInd]
-
-							if utils.StringContains(value, ", ") {
-								fmt.Println("Matches", arg[strings.Index(arg, trigonometryFn):])
-								fmt.Sscanf(arg[strings.Index(arg, trigonometryFn):], trigonometryFn+"(%s, %s)", &firstValue, &secondValue)
-								// fmt.Sscanf(arg[strings.Index(arg, trigonometryFn):], trigonometryFn+"("+fmt.Sprint(firstValue)+" %s)", )
-
-								firstValue = firstValue[:len(firstValue)-1]
-								secondValue = secondValue[:len(secondValue)-1]
-								firstValueResult := t.arithmetic.ResolveOperation(utils.PrepareArguments([]string{firstValue}))
-								secondValueResult := t.arithmetic.ResolveOperation(utils.PrepareArguments([]string{secondValue}))
-
-								arg = strings.Replace(arg, fmt.Sprintf("%s(%s, %s)", trigonometryFn, firstValue, secondValue), fmt.Sprintf("%g", functions[trigonometryFn](t, firstValueResult, secondValueResult)), 1)
-							} else {
-								fmt.Sscanf(arg[strings.Index(arg, trigonometryFn):], trigonometryFn+"(%s)", &firstValue)
-								firstValue = firstValue[:len(firstValue)-1]
-								result := t.arithmetic.ResolveOperation(utils.PrepareArguments([]string{firstValue}))
-								arg = strings.Replace(arg, fmt.Sprintf("%s(%s)", trigonometryFn, firstValue), fmt.Sprintf("%g", functions[trigonometryFn](t, result)), 1)
-							}
-						}
-					}
-				}
+			if enclosedValue[parenthesisCloseIndex-1] == ')' {
+				enclosedValue = strings.Replace(enclosedValue, string(enclosedValue[parenthesisCloseIndex]), "", 1)
+				parenthesisCloseIndex = strings.LastIndex(enclosedValue, ")")
 			}
+
+			firstValue = enclosedValue[parenthesisOpenIndex+1 : parenthesisCloseIndex]
+			result := t.arithmetic.ResolveOperation(utils.PrepareArguments([]string{firstValue}))
+			input = strings.Replace(input, enclosedValue[:parenthesisCloseIndex+1], fmt.Sprintf("%g", functions[trigonometryFn](t, result)), 1)
+
 		}
 	}
 
+	result = input
+	return result
+}
+
+func (t *trigonometry) resolveTrigonometryFunctions(elements []string) []string {
+	elementsStr := strings.Join(elements, "")
+
+	if len(elements) == 1 && utils.SignsRegex.MatchString(elementsStr) {
+		elements = utils.CreateSlice(elements)
+	}
+	arg := strings.Join(elements, "")
+
+	parenthesisOpenIndex, parenthesisCloseIndex := strings.Index(arg, "("), strings.LastIndex(arg, ")")
+	principalFunction := arg[:parenthesisOpenIndex]
+	enclosedValue := arg[parenthesisOpenIndex+1 : parenthesisCloseIndex]
+	_, match := sustractFunctionsNames(enclosedValue)
+
+	if match {
+		enclosedValue = processSubmatchFunctions(t, enclosedValue)
+	}
+	substitutedValue := functions[principalFunction](t, t.arithmetic.ResolveOperation(utils.CreateSlice(strings.Fields(enclosedValue))))
+	arg = strings.Replace(arg, arg, fmt.Sprintf("%g", substitutedValue), 1)
 	return strings.Fields(arg)
 }
 
@@ -110,8 +124,7 @@ func (t *trigonometry) sinFn(degrees float64) float64 {
 }
 
 func (t *trigonometry) sinHFn(degrees float64) float64 {
-	radians := utils.DegreesToRadians(degrees)
-	return math.Sinh(radians)
+	return math.Sinh(degrees)
 }
 
 func (t *trigonometry) cosineFn(degrees float64) float64 {
@@ -120,8 +133,7 @@ func (t *trigonometry) cosineFn(degrees float64) float64 {
 }
 
 func (t *trigonometry) cosineHFn(degrees float64) float64 {
-	radians := utils.DegreesToRadians(degrees)
-	return math.Cosh(radians)
+	return math.Cosh(degrees)
 }
 
 func (t *trigonometry) tangentFn(degrees float64) float64 {
@@ -130,8 +142,7 @@ func (t *trigonometry) tangentFn(degrees float64) float64 {
 }
 
 func (t *trigonometry) cotangentFn(degrees float64) float64 {
-	radians := utils.DegreesToRadians(degrees)
-	return math.Atan(radians)
+	return math.Atan(degrees)
 }
 
 func (t *trigonometry) secantFn(degrees float64) float64 {

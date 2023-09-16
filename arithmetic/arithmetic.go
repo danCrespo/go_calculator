@@ -54,10 +54,31 @@ func pemdasOrder(args []string) float64 {
 	args = processOperationElements(args, E)
 	args = processOperationElements(args, M)
 	args = processOperationElements(args, D)
-	args = processOperationElements(args, A)
-	args = processOperationElements(args, S)
+	firstMatch := checkOrder(args, A, S)
+	if firstMatch == A {
+		args = processOperationElements(args, A)
+		args = processOperationElements(args, S)
+	} else {
+		args = processOperationElements(args, S)
+		args = processOperationElements(args, A)
+	}
 
 	return utils.StringToFloat64(args[0])
+}
+
+func checkOrder(args []string, obj1, obj2 string) string {
+	var firstMatch string
+	for index := 0; index < len(args); index++ {
+		if args[index] == obj1 {
+			firstMatch = obj1
+			break
+		} else if args[index] == obj2 {
+			firstMatch = obj2
+			break
+		}
+	}
+
+	return firstMatch
 }
 
 func moduleOperation(operationElements []string) float64 {
@@ -85,13 +106,12 @@ func processParenthesisGroups(operationElements []string, operator string) (args
 		}
 	}
 
-	for parenthesis := len(openParenthesisIndexes) - 1; parenthesis >= 0; parenthesis-- {
-		openParenthesis := openParenthesisIndexes[parenthesis]
+	for parenthesisIndex := len(openParenthesisIndexes) - 1; parenthesisIndex >= 0; parenthesisIndex-- {
+		openParenthesis := openParenthesisIndexes[parenthesisIndex]
 		elementsSlice := elementStr[openParenthesis:]
 
 		for char := 0; char < len(elementsSlice); char++ {
 			if elementsSlice[char] == ')' {
-
 				portion := elementsSlice[1:char]
 				parenthesisResult := resolve(strings.Fields(portion))
 				elementStr = strings.ReplaceAll(elementStr, elementStr[openParenthesis:openParenthesis+char+1], fmt.Sprintf("%g", parenthesisResult))
@@ -116,7 +136,6 @@ func processOperationElements(operationElements []string, operator string) (args
 	for range operationElements {
 		if slices.Contains(operationElements, operator) {
 			operatorIndex := slices.Index[[]string, string](operationElements, operator)
-
 			if operator == Sustraction && len(operationElements[operatorIndex]) > 1 {
 				elementsGroup = append(elementsGroup, operationElements[operatorIndex:operatorIndex+3]...)
 				operationElements = utils.ReplaceSlice(operationElements, operatorIndex, operatorIndex+3, fmt.Sprintf("%g", resolve(elementsGroup)))
@@ -125,7 +144,6 @@ func processOperationElements(operationElements []string, operator string) (args
 				operationElements = utils.ReplaceSlice(operationElements, operatorIndex-1, operatorIndex+2, fmt.Sprintf("%g", resolve(elementsGroup)))
 			}
 		}
-
 		elementsGroup = slices.Delete[[]string](elementsGroup, 0, len(elementsGroup))
 	}
 

@@ -9,6 +9,14 @@ import (
 	"strings"
 )
 
+var (
+	SignsRegex           = regexp.MustCompile(`([\*/\+\-%\^]){1}`)
+	ParenthesisRegex     = regexp.MustCompile(`([(\)]){1}`)
+	DigitRegex           = regexp.MustCompile(`(\b[\*/\+\-%\^\s]*)([\d]+\.?[\d]*)\b`)
+	negativeNumberRegex  = regexp.MustCompile(`[\*/\+\-%\^]-[\d]+\.?[\d]*`)
+	negativeNumberRegex2 = regexp.MustCompile(`^-[\d]+\.?[\d]*`)
+)
+
 func StringToFloat64(s string) float64 {
 	var res float64
 	if _, err := fmt.Sscanf(s, "%v", &res); err != nil {
@@ -29,59 +37,81 @@ func DegreesToRadians(degrees float64) float64 {
 
 func StringContains(value string, patterns ...string) bool {
 	for _, pattern := range patterns {
-		if strings.Contains(value, pattern) {
-			return true
+		for char := 0; char < len(value); char++ {
+			if string(value[char]) == pattern {
+				return true
+			}
 		}
 	}
 	return false
 }
 
+func CheckForNegativeNumber(exp string, negativeNumbers *[]string) {
+	negativeNums := negativeNumberRegex.FindAllString(exp, -1)
+	negativeNums2 := negativeNumberRegex2.FindAllString(exp, -1)
+	if len(negativeNums) > 0 || len(negativeNums2) > 0 {
+		*negativeNumbers = append(*negativeNumbers, negativeNums...)
+		*negativeNumbers = append(*negativeNumbers, negativeNums2...)
+	}
+}
+
 func CreateSlice(e []string) (elements []string) {
-
 	str := strings.Join(e, "")
-	negativeNumberRegex := regexp.MustCompile(`[\*/\+\-%\^]-[\d]+\.[\d]*`)
-	digitRegex := regexp.MustCompile(`[\d]+\.?[\d]*`)
-	totalDigits := digitRegex.FindAllString(str, -1)
-	negativeNumber := negativeNumberRegex.FindString(str)
-	negativeNumberInd := strings.Index(str, negativeNumber)
-	charArray := ""
-
-	if negativeNumber != "" {
-		str = negativeNumberRegex.ReplaceAllString(str, "")
-
+	totalDigits := DigitRegex.FindAllString(str, -1)
+	match, matches := StringContainsAndWhatContains(str, "^", "*", "/", "+", "-")
+	if match && (len(totalDigits) == len(matches)) && len(matches) == 1 {
+		elements = e
+		return
 	}
 
-	for char := 0; char < len(str); char++ {
-		if negativeNumber != "" && char == negativeNumberInd-1 {
-			charArray += string(str[char]) + " " + string(negativeNumber[0]) + " " + negativeNumber[1:]
-		}
-		if StringContains(string(str[char]), "^", "*", "/", "+", "-") && len(totalDigits) > 1 {
-			charArray += " " + string(str[char]) + " "
+	finalStr := ""
+	for i := 0; i < len(str); i++ {
+		if StringContains(string(str[i]), "^", "*", "/", "+", "-") {
+			if i+1 < len(str) && SignsRegex.MatchString(string(str[i+1])) {
+				finalStr += " " + string(str[i]) + " "
+			} else if i+1 < len(str) && i-1 > 0 && (SignsRegex.MatchString(string(str[i-1])) && DigitRegex.MatchString(string(str[i+1])) || string(str[i-1]) == "" && DigitRegex.MatchString(string(str[i+1]))) {
+				finalStr += " " + string(str[i])
+			} else if i == 0 && str[i] == '-' && DigitRegex.MatchString(string(str[i+1])) {
+				finalStr += string(str[i])
+			} else {
+				finalStr += " " + string(str[i]) + " "
+			}
 		} else {
-			charArray += string(str[char])
+			finalStr += string(str[i])
 		}
 	}
-
-	elements = strings.Fields(charArray)
+	elements = strings.Fields(finalStr)
 	return
 }
 
 func StringContainsAndWhatContains(value string, patterns ...string) (bool, []string) {
-	result := false
-	patternsMatched := make([]string, 0)
-	for i, pattern := range patterns {
-		if strings.Contains(value, pattern) {
+	result, patternsMatched := false, make([]string, 0)
+	for _, pattern := range patterns {
+		for char := 0; char < len(value); char++ {
+			if string(value[char]) == pattern {
+				result = true
+				patternsMatched = append(patternsMatched, pattern)
+			}
+		}
+		if len(patternsMatched) == 0 {
+			if strings.Contains(value, pattern) {
+				result = true
+				patternsMatched = append(patternsMatched, pattern)
+			}
+		}
+	}
+	slices.Sort[[]string, string](patternsMatched)
+	return result, patternsMatched
+}
+
+func SlicesContainsAndWhatContains(s []any, patterns ...string) (bool, []string) {
+	result, patternsMatched := false, make([]string, 0)
+	for _, pattern := range patterns {
+		if slices.Contains[[]any, any](s, pattern) {
 			result = true
 			patternsMatched = append(patternsMatched, pattern)
 		}
-
-		if i == len(patterns)-1 {
-			break
-		}
-		continue
 	}
-
-	slices.Sort[[]string, string](patternsMatched)
 	return result, patternsMatched
 }
 
@@ -93,11 +123,6 @@ func SlicesContains(s []any, patterns ...string) bool {
 	}
 	return false
 }
-
-var (
-	SignsRegex       = regexp.MustCompile(`([\*/\+\-%\^]){1}`)
-	ParenthesisRegex = regexp.MustCompile(`([(\)]){1}`)
-)
 
 func PrepareArguments(args []string) []string {
 	if len(args) == 1 {
